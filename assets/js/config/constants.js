@@ -1,7 +1,7 @@
 export const CONFIG = {
   // URL Endpoint Supabase Edge Function (silaras-api)
   GAS_WEB_APP_URL: 'https://sjoiibckbqamfahjlgmx.supabase.co/functions/v1/silaras-api',
-  SUPABASE_ANON_KEY: 'sb_publishable_g-q9pGPIyEQ3Qpa2kc-0YQ_Q1uaoNxe',
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNqb2lpYmNrYnFhbWZhaGpsZ214Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU1MDIwNDQsImV4cCI6MjExMTA3ODA0NH0.isVDLWhpVCZ-ZT1wYmBsWMbM8r2vE1ahSPsQXHNPlWI',
   SESSION_STORAGE_KEY: 'SILARAS_SESSION',
   MAKER_HISTORY_KEY: 'SILARAS_MAKER_HISTORY',
   UNIT_HISTORY_KEY: 'SILARAS_UNIT_HISTORY',
