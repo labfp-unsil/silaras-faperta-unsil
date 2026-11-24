@@ -121,7 +121,7 @@ export function createAuthModule() {
 
     async submitRequestResetOtp() {
           try {
-            const res = await this.runGas('apiRequestPasswordResetOtp', this.forgotForm.email);
+            const res = await this.runGas('apiSwitchContext', this.session.token, this.session.active_lab_id, this.session.active_role);
             this.forgotForm.step = 2;
             this.showToast(res.message || 'Kode OTP telah dikirim ke email Anda');
           } catch (e) {
