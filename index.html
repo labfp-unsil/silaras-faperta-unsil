@@ -2667,7 +2667,8 @@
       </div>
       <div x-show="filteredPickerCatalog().length > 0" class="grid sm:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-1">
         <template x-for="(c, idx) in filteredPickerCatalog()" :key="(c.inv_id || c.item_id || 'item') + '-' + idx">
-          <div class="border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-2.5 bg-slate-50/40 hover:border-emerald-600 transition">
+          <div class="border rounded-xl p-3 flex items-center justify-between gap-2.5 transition"
+               :class="Number(c.qty_available || 0) <= 0 ? 'border-slate-200 bg-slate-100/80 opacity-65' : 'border-slate-200 bg-slate-50/40 hover:border-emerald-600'">
             <div class="flex items-center gap-2.5 min-w-0">
               <img x-show="c.photo_url" :src="normalizeDriveImgUrl(c.photo_url)" class="w-11 h-11 rounded-lg object-cover border shrink-0" />
               <div x-show="!c.photo_url" class="w-11 h-11 rounded-lg bg-slate-200/70 flex items-center justify-center shrink-0 text-slate-400">
@@ -2679,12 +2680,21 @@
                       x-text="(catalogPickerModal.category === 'ALL' && c.category ? c.category + ' • ' : '') + (c.item_id || '')"></span>
                 <p class="font-bold text-xs text-slate-900 truncate mt-0.5" x-text="c.item_name"></p>
                 <p x-show="c.maker_type_spec" class="text-[10px] text-slate-500 truncate" x-text="c.maker_type_spec"></p>
-                <p class="text-[11px] text-emerald-700">Tersedia: <b x-text="c.qty_available + ' ' + c.unit"></b></p>
+                <p class="text-[11px]" :class="Number(c.qty_available || 0) <= 0 ? 'text-red-600 font-bold' : 'text-emerald-700'">
+                  Tersedia: <b x-text="c.qty_available + ' ' + c.unit"></b>
+                  <span x-show="Number(c.qty_available || 0) <= 0">(Stok Habis)</span>
+                </p>
               </div>
             </div>
             <div class="flex items-center gap-1 shrink-0">
-              <input type="number" step="any" min="0.01" :max="c.qty_available" x-model.number="c.pickQty" class="w-16 px-2 py-1 border border-slate-300 rounded-lg text-xs bg-white" />
-              <button type="button" @click="confirmPickItem(c)" class="px-2.5 py-1.5 bg-silaras-dark hover:bg-emerald-900 text-white rounded-lg text-xs font-bold">Tambahkan</button>
+              <input type="number" step="any" min="0.01" :max="c.qty_available" x-model.number="c.pickQty"
+                     :disabled="Number(c.qty_available || 0) <= 0"
+                     class="w-16 px-2 py-1 border border-slate-300 rounded-lg text-xs bg-white disabled:bg-slate-100 disabled:cursor-not-allowed" />
+              <button type="button" @click="confirmPickItem(c)"
+                      :disabled="Number(c.qty_available || 0) <= 0"
+                      class="px-2.5 py-1.5 bg-silaras-dark hover:bg-emerald-900 disabled:bg-slate-400 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold">
+                Tambahkan
+              </button>
             </div>
           </div>
         </template>
