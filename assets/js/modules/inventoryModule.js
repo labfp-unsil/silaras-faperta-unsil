@@ -291,14 +291,11 @@ export function createInventoryModule() {
               }
             };
           } else {
-            const defaultLoc = (this.invLocationFilter !== 'ALL' && this.invLocationFilter !== 'GUDANG')
-              ? this.invLocationFilter
-              : (this.session?.accessible_labs?.[0]?.lab_id || '');
             this.invFormModal = {
               open: true,
               is_edit: false,
               data: {
-                location_id: defaultLoc,
+                location_id: '',
                 item_id: '',
                 item_name: '',
                 maker_type_spec: '',
