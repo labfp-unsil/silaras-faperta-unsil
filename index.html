@@ -2290,6 +2290,14 @@
             </div>
           </div>
         </div>
+		<div x-show="getWhEditMergeCandidate()" class="p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-[11px] leading-relaxed">
+          <i class="fa-solid fa-code-merge mr-1 text-amber-600"></i>
+          Ditemukan stok <b x-text="getWhEditMergeCandidate()?.item_name"></b> dengan tanggal kedaluwarsa yang sama
+          (<b x-text="getWhEditMergeCandidate()?.expiry_date || 'Tanpa Exp'"></b>, sisa saat ini:
+          <b x-text="(getWhEditMergeCandidate()?.qty_available || 0) + ' ' + (getWhEditMergeCandidate()?.unit || '')"></b>).
+          Saat disimpan, kuantitas (<b x-text="whEditModal.data.qty_available || 0"></b>) akan otomatis ditambahkan menjadi
+          <b x-text="(Number(getWhEditMergeCandidate()?.qty_available || 0) + Number(whEditModal.data.qty_available || 0)) + ' ' + (getWhEditMergeCandidate()?.unit || '')"></b>.
+        </div>
         <div x-show="whEditModal.data.photo_base64 || whEditModal.data.photo_url" class="flex items-center gap-3 pt-1">
           <div class="relative inline-block">
             <img :src="whEditModal.data.photo_base64 || normalizeDriveImgUrl(whEditModal.data.photo_url)" class="w-20 h-20 object-cover rounded-xl border border-slate-300" />
