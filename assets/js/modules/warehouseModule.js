@@ -158,17 +158,21 @@ export function createWarehouseModule() {
     },
 
     async submitWhEditModal() {
-          try {
-            const d = this.whEditModal.data;
-            const res = await this.runGas('apiUpdateWarehouseStockItem', this.session.token, d);
-            this.recordInputHistory(d.maker_type_spec, d.unit);
-            this.whEditModal.open = false;
-            this.showToast(res.message || 'Detail barang gudang berhasil diperbarui');
-            await this.loadWarehouse();
-          } catch (e) {
-            this.showToast(e.message, 'error');
-          }
-        },
+      try {
+        const d = this.whEditModal.data;
+        const res = await this.runGas('apiUpdateWarehouseStockItem', this.session.token, d);
+        this.recordInputHistory(d.maker_type_spec, d.unit);
+        this.whEditModal.open = false;
+        this.showToast(res.message || 'Detail barang gudang berhasil diperbarui');
+        await this.loadWarehouse();
+        // Segarkan juga cache inventaris agar menu Inventaris Bahan/Kimia/Alat ikut ter-update
+        if (typeof this.loadWorkspaceBundle === 'function') {
+          await this.loadWorkspaceBundle(true);
+        }
+      } catch (e) {
+        this.showToast(e.message, 'error');
+      }
+    },
 
     async deleteWarehouseStockItem(item) {
           const ok = await this.askConfirm(`Yakin ingin menghapus "${item.item_name}" (${item.item_id}) dari Stok Gudang Pusat?`, 'Hapus Barang Gudang');
