@@ -1,9 +1,10 @@
 import Alpine from 'https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/module.esm.js';
 
-import { CONFIG, MENU_TITLES } from './config/constants.js';
-import { callGasTransport } from './services/gasApi.js';
-import { normalizeYMD, formatDateYMD, formatDateIndonesian } from './utils/dateHelper.js';
-import { normalizeDriveImgUrl, sortByItemName } from './utils/mediaHelper.js';
+import { createConfigMixin } from './config/constants.js';
+import { createGasApiMixin } from './services/gasApi.js';
+import { createDateHelperMixin } from './utils/dateHelper.js';
+import { createMediaHelperMixin } from './utils/mediaHelper.js';
+import { createDocGeneratorMixin } from './utils/docGenerator.js';
 
 import { createAuthModule } from './modules/authModule.js';
 import { createPublicModule } from './modules/publicModule.js';
@@ -15,23 +16,14 @@ import { createAdminModule } from './modules/adminModule.js';
 window.Alpine = Alpine;
 
 Alpine.data('silarasApp', () => ({
-  // Global UI State
-  loading: false,
-  syncing: false,
-  loadingText: '',
-  toast: { show: false, message: '', type: 'success' },
-  activeMenu: 'dashboard',
-  mobileSidebarOpen: false,
-  bundleLoaded: false,
-  dashData: { stats: {}, bookings: [], loans: [], usages: [], notifications: [] },
+  // Core Config, Transport & Pure Utilities
+  ...createConfigMixin(),
+  ...createGasApiMixin(),
+  ...createDateHelperMixin(),
+  ...createMediaHelperMixin(),
+  ...createDocGeneratorMixin(),
 
-  // Custom Non-Blocking Dialogs
-  confirmModal: { open: false, title: '', message: '', resolve: null },
-  promptModal: { open: false, title: '', message: '', placeholder: '', options: [], value: '', resolve: null },
-  imagePreviewModal: { open: false, url: '', title: '' },
-  cameraModal: { open: false, target: '', stream: null },
-
-  // Spread seluruh domain modules
+  // Domain Modules
   ...createAuthModule(),
   ...createPublicModule(),
   ...createInventoryModule(),
@@ -39,125 +31,230 @@ Alpine.data('silarasApp', () => ({
   ...createTransactionModule(),
   ...createAdminModule(),
 
-  // Expose pure helpers ke template HTML
-  normalizeYMD,
-  formatDateYMD,
-  formatDateIndonesian,
-  normalizeDriveImgUrl,
-  sortByItemName,
+  // Global Shell State & Lifecycle
+  loading: false,
 
-  // Transport Wrappers
-  runGas(fnName, ...args) {
-    return callGasTransport(this, fnName, args, true);
-  },
+  syncing: false,
 
-  runGasSilent(fnName, ...args) {
-    return callGasTransport(this, fnName, args, false);
-  },
+  loadingText: '',
 
-  showToast(message, type = 'success') {
-    this.toast = { show: true, message, type };
-    setTimeout(() => { this.toast.show = false; }, 4200);
-  },
+  toast: { show: false, message: '', type: 'success' },
 
-  openImagePreview(url, title = 'Pratinjau Gambar') {
-    if (!url) return;
-    this.imagePreviewModal = {
-      open: true,
-      url: normalizeDriveImgUrl(url),
-      title,
-    };
-  },
+  activeMenu: 'dashboard',
 
-  menuTitle() {
-    return MENU_TITLES[this.activeMenu] || 'SILARAS';
-  },
+  mobileSidebarOpen: false,
 
-  async navigate(menuKey) {
-    this.activeMenu = menuKey;
-    this.mobileSidebarOpen = false;
-    await this.refreshCurrentData();
-  },
+  // Modal dialog pengganti confirm() dan prompt()
+        confirmModal: { open: false, title: '', message: '', resolve: null },
 
-  async refreshCurrentData() {
-    if (!this.session) return;
-    switch (this.activeMenu) {
-      case 'dashboard':
-        await this.loadWorkspaceBundle(true);
-        break;
-      case 'master_data':
-        await this.loadMasterData();
-        break;
-      case 'inv_alat':
-        await this.loadInventory('Alat', true);
-        break;
-      case 'alat_rusak':
-        await this.loadDamagedEquipment();
-        break;
-      case 'inv_bahan':
-        await this.loadInventory('Bahan', true);
-        break;
-      case 'inv_kimia':
-        await this.loadInventory('Bahan Kimia', true);
-        break;
-      case 'gudang':
-        await this.loadWarehouse();
-        break;
-      case 'pinjam_alat':
-        await this.loadLoans();
-        break;
-      case 'guna_bahan':
-        await this.loadUsages();
-        break;
-      case 'booking_ruang':
-        await this.loadBookings();
-        break;
-      case 'verifikasi':
-        await this.loadVerifications();
-        break;
-      case 'audit':
-        await this.loadAuditLogs();
-        break;
-      case 'settings':
-        await this.loadSettingsData();
-        break;
-    }
-  },
+  promptModal: { open: false, title: '', message: '', placeholder: '', options: [], value: '', resolve: null },
 
-  async loadWorkspaceBundle(force = false) {
-    if (!this.session?.token) return;
-    if (this.bundleLoaded && !force) return;
-    try {
-      const res = await this.runGasSilent('apiGetWorkspaceBundle', this.session.token, this.session.active_lab_id || '');
-      if (res.dashData) this.dashData = res.dashData;
-      if (res.permission_matrix) this.initPermissionMatrix(res.permission_matrix);
-      if (res.labs) this.labsList = res.labs;
-      this.bundleLoaded = true;
-    } catch (e) {
-      console.warn('Workspace bundle load warning:', e.message);
-    }
-  },
+  bundleLoaded: false,
+
+  dashData: { stats: {}, bookings: [], loans: [], usages: [], notifications: [] },
+
+  imagePreviewModal: { open: false, url: '', title: '' },
+
+  cameraModal: { open: false, target: '', stream: null },
+
+  // DIALOG KUSTOM NON-BLOCKING (PENGGANTI confirm & prompt)
+        askConfirm(message, title = 'Konfirmasi Tindakan') {
+          return new Promise((resolve) => {
+            this.confirmModal = { open: true, title, message, resolve };
+          });
+        },
+
+  resolveConfirmModal(result) {
+          const fn = this.confirmModal.resolve;
+          this.confirmModal.open = false;
+          this.confirmModal.resolve = null;
+          if (typeof fn === 'function') fn(result);
+        },
+
+  askPrompt(message, defaultValue = '', title = 'Input Keterangan', placeholder = '', options = []) {
+          return new Promise((resolve) => {
+            this.promptModal = {
+              open: true,
+              title,
+              message,
+              placeholder,
+              options: Array.isArray(options) ? options : [],
+              value: defaultValue,
+              resolve
+            };
+          });
+        },
+
+  resolvePromptModal(val) {
+          const fn = this.promptModal.resolve;
+          this.promptModal.open = false;
+          this.promptModal.resolve = null;
+          if (typeof fn === 'function') fn(val);
+        },
 
   initApp() {
-    this.initPermissionMatrix(null);
-    this.startSessionWatcher();
+          this.initPermissionMatrix(null);
+          this.loadLocalInputHistories();
+          this.startSessionWatcher();
+          const saved = localStorage.getItem('SILARAS_SESSION');
+          if (saved) {
+            try {
+              this.session = JSON.parse(saved);
+              this.syncActiveLabContext();
+              this.profileForm.full_name = this.session.full_name || '';
+              this.bookingForm.pic_name = this.session.full_name || '';
+              this.bookingForm.unit_prodi = this.session.unit_prodi || '';
+              this.loadWorkspaceBundle(false);
+            } catch (e) {
+              localStorage.removeItem('SILARAS_SESSION');
+              this.session = null;
+            }
+          }
+          this.loadPublicHome();
+        },
 
-    const saved = localStorage.getItem(CONFIG.SESSION_STORAGE_KEY);
-    if (saved) {
-      try {
-        this.session = JSON.parse(saved);
-        this.syncActiveLabContext();
-        this.profileForm.full_name = this.session.full_name || '';
-        this.bookingForm.pic_name = this.session.full_name || '';
-        this.bookingForm.unit_prodi = this.session.unit_prodi || '';
-        this.loadWorkspaceBundle(false);
-      } catch (e) {
-        localStorage.removeItem(CONFIG.SESSION_STORAGE_KEY);
-        this.session = null;
-      }
-    }
-    this.loadPublicHome();
-  },
+  showToast(message, type = 'success') {
+          this.toast = { show: true, message, type };
+          setTimeout(() => { this.toast.show = false; }, 4200);
+        },
+
+  openImagePreview(url, title = 'Pratinjau Foto') {
+          if (!url) return;
+          this.imagePreviewModal = {
+            open: true,
+            url: this.normalizeDriveImgUrl(url),
+            title: title
+          };
+        },
+
+  closeImagePreview() {
+          this.imagePreviewModal.open = false;
+        },
+
+  menuTitle() {
+          const titles = {
+            dashboard: 'Dashboard Utama',
+            master_data: 'Master Data Barang',
+            inv_alat: 'Inventaris Peralatan',
+            alat_rusak: 'Alat Perbaikan & Rusak',
+            inv_bahan: 'Inventaris Bahan',
+            inv_kimia: 'Inventaris Bahan Kimia',
+            gudang: 'Gudang & Stok Pusat',
+            pinjam_alat: 'Peminjaman Peralatan',
+            guna_bahan: 'Penggunaan Bahan & Bahan Kimia',
+            booking_ruang: 'Penggunaan Ruangan Laboratorium',
+            verifikasi: 'Verifikasi & Persetujuan',
+            laporan: 'Laporan & Ekspor',
+            audit: 'Audit Trail Sistem',
+            settings: 'Pengguna, Lab & Hak Akses'
+          };
+          return titles[this.activeMenu] || 'SILARAS';
+        },
+
+  navigate(menu) {
+          this.activeMenu = menu;
+          this.mobileSidebarOpen = false;
+          if (menu === 'dashboard') {
+            this.loadDashboard(!this.bundleLoaded);
+          } else if (['inv_alat','inv_bahan','inv_kimia'].includes(menu)) {
+            const cat = this.currentInvCategory();
+            if (this.bundleLoaded && (this.invCache[cat] || []).length > 0 && this.invLocationFilter === 'ALL') {
+              this.inventoryList = this.invCache[cat];
+            } else {
+              this.loadInventory();
+            }
+          } else if (menu === 'alat_rusak') {
+            this.loadDamagedEquipment(false);
+          } else if (menu === 'gudang') {
+            if (!this.bundleLoaded || (this.warehouseData.stock || []).length === 0) {
+              this.loadWarehouse();
+            }
+          } else if (menu === 'master_data') {
+            if (!this.bundleLoaded || (this.masterItemsList || []).length === 0) {
+              this.loadMasterItems();
+            }
+          } else if (menu === 'audit') {
+            this.loadAuditLogs();
+          } else if (menu === 'settings') {
+            if (!this.bundleLoaded || (this.adminData.users || []).length === 0) {
+              this.loadAdminSettings();
+            }
+          }
+        },
+
+  async loadWorkspaceBundle(silent = false) {
+          if (!this.session?.token) return;
+          try {
+            const runner = silent ? this.runGasSilent.bind(this) : this.runGas.bind(this);
+            const res = await runner('apiGetWorkspaceBundle', this.session.token);
+            if (!res) return;
+
+            this.dashData = res.dashboard || this.dashData;
+            this.invCache = {
+              Alat: res.inv_alat || [],
+              Bahan: res.inv_bahan || [],
+              'Bahan Kimia': res.inv_kimia || []
+            };
+            if (['inv_alat','inv_bahan','inv_kimia'].includes(this.activeMenu)) {
+              this.inventoryList = this.invCache[this.currentInvCategory()] || [];
+            }
+
+            if (res.warehouse) {
+              this.warehouseData = res.warehouse;
+            }
+            if (Array.isArray(res.master_items)) {
+              this.masterItemsList = res.master_items;
+            }
+            if (res.admin) {
+              this.adminData = res.admin;
+              this.initPermissionMatrix(res.admin.role_permissions || null);
+            }
+            this.bundleLoaded = true;
+          } catch (e) {
+            if (!silent) {
+              await this.loadDashboard(false);
+            }
+          }
+        },
+
+  async refreshActiveView() {
+          const menu = this.activeMenu;
+          if (menu === 'dashboard') {
+            await this.loadWorkspaceBundle(true);
+            this.showToast('Data workspace berhasil disegarkan');
+          } else if (['inv_alat','inv_bahan','inv_kimia'].includes(menu)) {
+            await this.loadInventory();
+            this.showToast('Inventaris disegarkan');
+          } else if (menu === 'alat_rusak') {
+            await this.loadDamagedEquipment(true);
+            this.showToast('Data alat rusak & perbaikan disegarkan');
+          } else if (menu === 'gudang') {
+            await this.loadWarehouse();
+            this.showToast('Data gudang disegarkan');
+          } else if (['pinjam_alat','guna_bahan','booking_ruang','verifikasi'].includes(menu)) {
+            await this.loadDashboard(true);
+            this.showToast('Antrean permohonan disegarkan');
+          } else if (menu === 'master_data') {
+            await this.loadMasterItems();
+            this.showToast('Master data disegarkan');
+          } else if (menu === 'audit') {
+            await this.loadAuditLogs();
+            this.showToast('Audit trail disegarkan');
+          } else if (menu === 'settings') {
+            await this.loadAdminSettings();
+            this.showToast('Data pengguna & pengaturan disegarkan');
+          }
+        },
+
+  async loadDashboard(silent = false) {
+          try {
+            const runner = silent ? this.runGasSilent.bind(this) : this.runGas.bind(this);
+            const res = await runner('apiGetDashboardData', this.session.token);
+            this.dashData = res;
+          } catch (e) {
+            this.showToast(e.message, 'error');
+          }
+        }
 }));
 
 Alpine.start();

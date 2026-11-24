@@ -1,75 +1,116 @@
-export const MONTHS_ID = [
-  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
-];
+export function createDateHelperMixin() {
+  return {
+    normalizeYMD(val) {
+          if (!val) return '';
+          const s = String(val).trim();
+          const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+          if (m) return m[1];
+          const parsed = new Date(s);
+          if (!isNaN(parsed.getTime())) {
+            const y = parsed.getFullYear();
+            const mo = String(parsed.getMonth() + 1).padStart(2, '0');
+            const d = String(parsed.getDate()).padStart(2, '0');
+            return `${y}-${mo}-${d}`;
+          }
+          return s;
+        },
 
-export const DAYS_ID = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    getCalendarGridCells() {
+          const anchor = new Date((this.calendarAnchorDate || this.selectedCalendarDate) + 'T00:00:00');
+          const todayStr = new Date().toISOString().slice(0, 10);
+          const cells = [];
 
-export function formatDateYMD(dateObj) {
-  const y = dateObj.getFullYear();
-  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const d = String(dateObj.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
+          if (this.calendarMode === 'week') {
+            const dayOfWeek = anchor.getDay();
+            const startOfWeek = new Date(anchor);
+            startOfWeek.setDate(anchor.getDate() - dayOfWeek);
+            for (let i = 0; i < 7; i++) {
+              const d = new Date(startOfWeek);
+              d.setDate(startOfWeek.getDate() + i);
+              const dateStr = this.formatDateYMD(d);
+              cells.push({
+                key: 'w-' + dateStr,
+                isEmpty: false,
+                dateStr,
+                dayNumber: d.getDate(),
+                isToday: dateStr === todayStr,
+                events: this.getCalendarEventsForDate(dateStr)
+              });
+            }
+            return cells;
+          }
 
-export function normalizeYMD(val) {
-  if (!val) return '';
-  if (val instanceof Date && !isNaN(val.getTime())) {
-    return formatDateYMD(val);
-  }
-  const s = String(val).trim();
-  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (m) return m[1];
-  const parsed = new Date(s);
-  if (!isNaN(parsed.getTime())) {
-    return formatDateYMD(parsed);
-  }
-  return s;
-}
+          const year = anchor.getFullYear();
+          const month = anchor.getMonth();
+          const firstDay = new Date(year, month, 1).getDay();
+          const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-export function formatDateIndonesian(dateStr) {
-  const ymd = normalizeYMD(dateStr);
-  if (!ymd) return '-';
-  const d = new Date(ymd + 'T00:00:00');
-  if (isNaN(d.getTime())) return ymd;
-  return `${DAYS_ID[d.getDay()]}, ${d.getDate()} ${MONTHS_ID[d.getMonth()]} ${d.getFullYear()}`;
-}
+          for (let i = 0; i < firstDay; i++) {
+            cells.push({ key: 'empty-' + i, isEmpty: true });
+          }
+          for (let day = 1; day <= daysInMonth; day++) {
+            const d = new Date(year, month, day);
+            const dateStr = this.formatDateYMD(d);
+            cells.push({
+              key: 'm-' + dateStr,
+              isEmpty: false,
+              dateStr,
+              dayNumber: day,
+              isToday: dateStr === todayStr,
+              events: this.getCalendarEventsForDate(dateStr)
+            });
+          }
+          return cells;
+        },
 
-export function getMonthYearLabel(dateStr, isDayMode = false) {
-  const ymd = normalizeYMD(dateStr);
-  if (!ymd) return '';
-  const d = new Date(ymd + 'T00:00:00');
-  if (isNaN(d.getTime())) return ymd;
-  if (isDayMode) {
-    return `${d.getDate()} ${MONTHS_ID[d.getMonth()]} ${d.getFullYear()}`;
-  }
-  return `${MONTHS_ID[d.getMonth()]} ${d.getFullYear()}`;
-}
+    shiftCalendarPeriod(step) {
+          const d = new Date((this.calendarAnchorDate || this.selectedCalendarDate) + 'T00:00:00');
+          if (this.calendarMode === 'day') {
+            d.setDate(d.getDate() + step);
+            const nextStr = this.formatDateYMD(d);
+            this.calendarAnchorDate = nextStr;
+            this.selectedCalendarDate = nextStr;
+          } else if (this.calendarMode === 'week') {
+            d.setDate(d.getDate() + (step * 7));
+            const nextStr = this.formatDateYMD(d);
+            this.calendarAnchorDate = nextStr;
+            this.selectedCalendarDate = nextStr;
+          } else {
+            d.setMonth(d.getMonth() + step, 1);
+            const nextStr = this.formatDateYMD(d);
+            this.calendarAnchorDate = nextStr;
+            this.selectedCalendarDate = nextStr;
+          }
+        },
 
-export function buildCalendarDays(cursorDateStr, events = [], dateField = 'booking_date') {
-  const ymd = normalizeYMD(cursorDateStr) || formatDateYMD(new Date());
-  const cursor = new Date(ymd + 'T00:00:00');
-  const year = cursor.getFullYear();
-  const month = cursor.getMonth();
+    resetCalendarToday() {
+          const today = new Date().toISOString().slice(0, 10);
+          this.calendarAnchorDate = today;
+          this.selectedCalendarDate = today;
+        },
 
-  const firstDay = new Date(year, month, 1);
-  const startOffset = firstDay.getDay();
-  const gridStart = new Date(year, month, 1 - startOffset);
-  const todayStr = formatDateYMD(new Date());
+    getCalendarPeriodLabel() {
+          const d = new Date((this.calendarAnchorDate || this.selectedCalendarDate) + 'T00:00:00');
+          const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+          if (this.calendarMode === 'day') {
+            return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+          }
+          return `${months[d.getMonth()]} ${d.getFullYear()}`;
+        },
 
-  const cells = [];
-  for (let i = 0; i < 42; i++) {
-    const cellDate = new Date(gridStart);
-    cellDate.setDate(gridStart.getDate() + i);
-    const cellYmd = formatDateYMD(cellDate);
-    const cellEvents = (events || []).filter((ev) => normalizeYMD(ev[dateField]) === cellYmd);
-    cells.push({
-      date: cellYmd,
-      dayNum: cellDate.getDate(),
-      inCurrentMonth: cellDate.getMonth() === month,
-      isToday: cellYmd === todayStr,
-      events: cellEvents,
-    });
-  }
-  return cells;
+    formatDateYMD(dateObj) {
+          const y = dateObj.getFullYear();
+          const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+          const d = String(dateObj.getDate()).padStart(2, '0');
+          return `${y}-${m}-${d}`;
+        },
+
+    formatDateIndonesian(dateStr) {
+          if (!dateStr) return '-';
+          const d = new Date(dateStr + 'T00:00:00');
+          const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+          const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+          return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+        }
+  };
 }

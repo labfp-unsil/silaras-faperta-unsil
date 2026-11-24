@@ -1,94 +1,161 @@
-import { formatDateYMD, normalizeYMD, getMonthYearLabel, buildCalendarDays } from '../utils/dateHelper.js';
-import { sortByItemName } from '../utils/mediaHelper.js';
-
 export function createPublicModule() {
   return {
-    publicCatalog: [],
-    publicSchedule: [],
-    publicLabs: [],
-    publicFilter: { lab_id: '', category: '', search: '' },
+    publicData: { labs: [], catalog: [], schedules: [] },
+
+    publicLoading: true,
+
+    publicCatalogSearch: '',
+
+    publicCatalogView: 'grid',
+
     publicCatalogPage: 1,
-    publicCatalogPerPage: 10,
-    publicScheduleView: 'list',
-    publicCalendarMode: 'month',
-    publicCalendarCursor: formatDateYMD(new Date()),
-    publicScheduleFilter: { lab_id: '', date: '' },
-    publicSummary: { totalTools: 0, totalMaterials: 0 },
 
-    get filteredPublicCatalog() {
-      const q = (this.publicFilter.search || '').toLowerCase();
-      const filtered = (this.publicCatalog || []).filter((item) => {
-        if (this.publicFilter.lab_id && item.lab_id !== this.publicFilter.lab_id) return false;
-        if (this.publicFilter.category && item.category !== this.publicFilter.category) return false;
-        if (q) {
-          const hay = `${item.item_name} ${item.brand} ${item.spec} ${item.lab_name}`.toLowerCase();
-          if (!hay.includes(q)) return false;
-        }
-        return true;
-      });
-      return sortByItemName(filtered, 'asc');
-    },
+    publicCatalogPerPage: 12,
 
-    get publicCatalogTotalPages() {
-      return Math.max(1, Math.ceil(this.filteredPublicCatalog.length / this.publicCatalogPerPage));
-    },
+    pubFilterLab: '',
 
-    get publicPageStart() {
-      if (this.filteredPublicCatalog.length === 0) return 0;
-      const page = Math.min(this.publicCatalogPage, this.publicCatalogTotalPages);
-      return (page - 1) * this.publicCatalogPerPage + 1;
-    },
+    pubFilterType: '',
 
-    get publicPageEnd() {
-      const page = Math.min(this.publicCatalogPage, this.publicCatalogTotalPages);
-      return Math.min(this.filteredPublicCatalog.length, page * this.publicCatalogPerPage);
-    },
+    pubFilterDate: '',
 
-    get paginatedPublicCatalog() {
-      const page = Math.min(Math.max(1, this.publicCatalogPage), this.publicCatalogTotalPages);
-      const start = (page - 1) * this.publicCatalogPerPage;
-      return this.filteredPublicCatalog.slice(start, start + this.publicCatalogPerPage);
-    },
+    pubFilterSearch: '',
 
-    get filteredPublicSchedule() {
-      return (this.publicSchedule || []).filter((s) => {
-        if (this.publicScheduleFilter.lab_id && s.lab_id !== this.publicScheduleFilter.lab_id) return false;
-        if (this.publicScheduleFilter.date && normalizeYMD(s.booking_date) !== this.publicScheduleFilter.date) return false;
-        return true;
-      });
-    },
+    calendarMode: 'month',
 
-    get publicCalendarMonthLabel() {
-      return getMonthYearLabel(this.publicCalendarCursor, this.publicCalendarMode === 'day');
-    },
+    calendarAnchorDate: new Date().toISOString().slice(0, 10),
 
-    get publicCalendarDays() {
-      return buildCalendarDays(this.publicCalendarCursor, this.filteredPublicSchedule, 'booking_date');
-    },
-
-    shiftPublicCalendar(delta) {
-      const d = new Date((normalizeYMD(this.publicCalendarCursor) || formatDateYMD(new Date())) + 'T00:00:00');
-      if (this.publicCalendarMode === 'day') {
-        d.setDate(d.getDate() + delta);
-      } else {
-        d.setMonth(d.getMonth() + delta);
-      }
-      this.publicCalendarCursor = formatDateYMD(d);
-    },
+    selectedCalendarDate: new Date().toISOString().slice(0, 10),
 
     async loadPublicHome() {
-      try {
-        const res = await this.runGasSilent('apiGetPublicHomeData');
-        this.publicCatalog = res.catalog || [];
-        this.publicSchedule = res.schedule || [];
-        this.publicLabs = res.labs || [];
-        this.publicSummary = res.summary || {
-          totalTools: this.publicCatalog.filter((x) => x.category === 'Alat').length,
-          totalMaterials: this.publicCatalog.filter((x) => x.category !== 'Alat').length,
-        };
-      } catch (e) {
-        console.warn('Public home load warning:', e.message);
-      }
-    },
+          this.publicLoading = true;
+          try {
+            const res = await this.runGasSilent('apiGetPublicHomeData');
+            this.publicData = {
+              labs: res.labs || [],
+              catalog: res.catalog || [],
+              schedules: (res.schedules || []).map(s => ({
+                ...s,
+                booking_date: this.normalizeYMD(s.booking_date)
+              }))
+            };
+            this.publicCatalogPage = 1;
+          } catch (e) {
+            console.warn(e.message);
+          } finally {
+            this.publicLoading = false;
+          }
+        },
+
+    filteredPublicCatalog() {
+          const q = this.publicCatalogSearch.toLowerCase().trim();
+          const list = this.publicData.catalog || [];
+          if (!q) return list;
+          return list.filter(x =>
+            (x.item_name || '').toLowerCase().includes(q) ||
+            (x.laboratories || '').toLowerCase().includes(q) ||
+            (x.maker_type_spec || '').toLowerCase().includes(q)
+          );
+        },
+
+    publicCatalogTotalPages() {
+          const total = this.filteredPublicCatalog().length;
+          return Math.max(1, Math.ceil(total / this.publicCatalogPerPage));
+        },
+
+    paginatedPublicCatalog() {
+          const list = this.filteredPublicCatalog();
+          const totalPages = Math.max(1, Math.ceil(list.length / this.publicCatalogPerPage));
+          if (this.publicCatalogPage > totalPages) {
+            this.publicCatalogPage = totalPages;
+          }
+          const start = (this.publicCatalogPage - 1) * this.publicCatalogPerPage;
+          return list.slice(start, start + this.publicCatalogPerPage);
+        },
+
+    goToPublicCatalogPage(page) {
+          const totalPages = this.publicCatalogTotalPages();
+          const target = Math.min(Math.max(1, Number(page) || 1), totalPages);
+          this.publicCatalogPage = target;
+          const el = document.getElementById('katalog-publik');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        },
+
+    getPublicCatalogPageNumbers() {
+          const total = this.publicCatalogTotalPages();
+          const current = this.publicCatalogPage;
+          if (total <= 7) {
+            return Array.from({ length: total }, (_, i) => i + 1);
+          }
+          const pages = [];
+          if (current <= 4) {
+            pages.push(1, 2, 3, 4, 5, '...', total);
+          } else if (current >= total - 3) {
+            pages.push(1, '...', total - 4, total - 3, total - 2, total - 1, total);
+          } else {
+            pages.push(1, '...', current - 1, current, current + 1, '...', total);
+          }
+          return pages;
+        },
+
+    filteredPublicSchedules() {
+          return (this.publicData.schedules || []).filter(s => {
+            if (s.status !== 'Terkonfirmasi') return false;
+            if (this.pubFilterLab && s.lab_id !== this.pubFilterLab) return false;
+            if (this.pubFilterType && s.activity_type !== this.pubFilterType) return false;
+            if (this.pubFilterDate && this.normalizeYMD(s.booking_date) !== this.pubFilterDate) return false;
+            if (this.pubFilterSearch) {
+              const q = this.pubFilterSearch.toLowerCase();
+              const hay = `${s.activity_title} ${s.pic_display} ${s.lab_name}`.toLowerCase();
+              if (!hay.includes(q)) return false;
+            }
+            return true;
+          });
+        },
+
+    getCalendarEventsForDate(dateStr) {
+          const targetYMD = this.normalizeYMD(dateStr);
+          return (this.publicData.schedules || []).filter(s => {
+            if (this.normalizeYMD(s.booking_date) !== targetYMD) return false;
+            if (this.pubFilterLab && s.lab_id !== this.pubFilterLab) return false;
+            return true;
+          }).sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')));
+        },
+
+    getSelectedDateEvents() {
+          return this.getCalendarEventsForDate(this.selectedCalendarDate);
+        },
+
+    formatShortEventPill(ev) {
+          const start = String(ev.start_time || '').slice(0, 5);
+          if (ev.status === 'Proses Pengajuan') return `${start} Proses`;
+          const prefix = ev.activity_type === 'Praktikum' ? 'Prak:' : (ev.activity_type === 'Penelitian' ? 'Pen:' : '');
+          return `${start} ${prefix} ${ev.activity_title}`.trim();
+        },
+
+    getEventBadgeClass(ev) {
+          if (ev.status === 'Proses Pengajuan') {
+            return 'bg-amber-100 text-amber-900 border border-amber-300';
+          }
+          if (ev.activity_type === 'Praktikum') {
+            return 'bg-[#064E3B] text-white';
+          }
+          if (ev.activity_type === 'Penelitian') {
+            return 'bg-[#84CC16] text-emerald-950';
+          }
+          return 'bg-[#0284C7] text-white';
+        },
+
+    getEventCardClass(ev) {
+          if (ev.status === 'Proses Pengajuan') {
+            return 'bg-amber-50 border border-amber-300 text-amber-950';
+          }
+          if (ev.activity_type === 'Praktikum') {
+            return 'bg-[#064E3B] text-white';
+          }
+          if (ev.activity_type === 'Penelitian') {
+            return 'bg-[#84CC16] text-emerald-950';
+          }
+          return 'bg-[#0284C7] text-white';
+        }
   };
 }

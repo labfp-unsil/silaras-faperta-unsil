@@ -1,32 +1,8 @@
-body {
-  font-family: 'Inter', sans-serif;
-}
-
-[x-cloak] {
-  display: none !important;
-}
-
-.bg-silaras-dark {
-  background-color: #064E3B;
-}
-
-.text-silaras-dark {
-  color: #064E3B;
-}
-
-.border-silaras-dark {
-  border-color: #064E3B;
-}
-
-.bg-silaras-lime {
-  background-color: #84CC16;
-}
-
-.text-silaras-lime {
-  color: #84CC16;
-}
-
-canvas.sig-pad {
-  touch-action: none;
-  cursor: crosshair;
-}
+body { font-family: 'Inter', sans-serif; }
+    [x-cloak] { display: none !important; }
+    .bg-silaras-dark { background-color: #064E3B; }
+    .text-silaras-dark { color: #064E3B; }
+    .border-silaras-dark { border-color: #064E3B; }
+    .bg-silaras-lime { background-color: #84CC16; }
+    .text-silaras-lime { color: #84CC16; }
+    canvas.sig-pad { touch-action: none; cursor: crosshair; }

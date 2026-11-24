@@ -1,78 +1,249 @@
-import { AVAILABLE_ROLES, PERMISSION_MODULES, DEFAULT_MATRIX_FALLBACK } from '../config/constants.js';
-
 export function createAdminModule() {
   return {
-    availableRoles: AVAILABLE_ROLES,
-    permissionModules: PERMISSION_MODULES,
-    permissionMatrix: {},
-    settingsTab: 'users',
-    usersList: [],
-    labsList: [],
-    auditLogs: [],
-    auditSearch: '',
+    auditLogsList: [],
 
-    userModal: { open: false, editMode: false },
-    userForm: {
-      user_id: '',
-      full_name: '',
-      email: '',
-      nim_nip: '',
-      unit_prodi: '',
-      phone: '',
-      roles: ['User'],
-      lab_ids: [],
-      is_active: true,
-    },
+    adminData: { users: [], labs: [], role_permissions: null },
 
-    labModal: { open: false, editMode: false },
-    labForm: { lab_id: '', lab_code: '', lab_name: '', location: '', head_name: '', is_active: true },
+    userModal: { open: false, data: { roles: ['User'], assigned_labs: [], status: 'active' } },
+
+    labModal: { open: false, is_edit: false, data: { lab_id: '', lab_name: '', lab_position: '', description: '', pic_name: '', status: 'active' } },
+
+    selectedMatrixRole: 'Laboran',
+
+    rolePermissionsMatrix: {},
+
+    getDefaultPermissionMatrix() {
+          const full = { view: true, edit: true, delete: true };
+          const viewEdit = { view: true, edit: true, delete: false };
+          const viewOnly = { view: true, edit: false, delete: false };
+          const none = { view: false, edit: false, delete: false };
+
+          const build = (overrides) => {
+            const out = {};
+            this.permissionModules.forEach(m => {
+              out[m.key] = { ...(overrides[m.key] || none) };
+            });
+            return out;
+          };
+
+          return {
+            'Super Admin': build(Object.fromEntries(this.permissionModules.map(m => [m.key, full]))),
+            'Admin': build({
+              master_data: full, inv_alat: full, alat_rusak: full, inv_bahan: full, inv_kimia: full,
+              gudang: viewEdit, pinjam_alat: viewOnly, guna_bahan: viewOnly, booking_ruang: viewOnly,
+              verifikasi: viewOnly, laporan: viewOnly, audit: viewOnly, settings: viewEdit
+            }),
+            'Petugas Gudang': build({
+              master_data: viewEdit, inv_alat: viewOnly, alat_rusak: viewOnly, inv_bahan: viewOnly, inv_kimia: viewOnly,
+              gudang: full, laporan: viewOnly
+            }),
+            'Laboran': build({
+              master_data: viewEdit, inv_alat: full, alat_rusak: full, inv_bahan: full, inv_kimia: full,
+              gudang: viewOnly, pinjam_alat: viewOnly, guna_bahan: viewOnly, booking_ruang: viewOnly,
+              verifikasi: viewEdit, laporan: viewOnly
+            }),
+            'Kepala Laboratorium': build({
+              inv_alat: viewOnly, alat_rusak: viewEdit, inv_bahan: viewOnly, inv_kimia: viewOnly,
+              pinjam_alat: viewOnly, guna_bahan: viewOnly, booking_ruang: viewOnly,
+              verifikasi: viewEdit, laporan: viewOnly, audit: viewOnly
+            }),
+            'User': build({
+              pinjam_alat: viewEdit, guna_bahan: viewEdit, booking_ruang: viewEdit
+            })
+          };
+        },
 
     initPermissionMatrix(serverMatrix) {
-      const base = JSON.parse(JSON.stringify(DEFAULT_MATRIX_FALLBACK));
-      if (serverMatrix && typeof serverMatrix === 'object') {
-        for (const role of Object.keys(serverMatrix)) {
-          base[role] = { ...(base[role] || {}), ...serverMatrix[role] };
-        }
-      }
-      this.permissionMatrix = base;
-    },
+          const defaults = this.getDefaultPermissionMatrix();
+          if (serverMatrix && typeof serverMatrix === 'object') {
+            this.availableRoles.forEach(role => {
+              if (serverMatrix[role]) {
+                this.permissionModules.forEach(m => {
+                  if (serverMatrix[role][m.key]) {
+                    defaults[role][m.key] = {
+                      view: !!serverMatrix[role][m.key].view,
+                      edit: !!serverMatrix[role][m.key].edit,
+                      delete: !!serverMatrix[role][m.key].delete
+                    };
+                  }
+                });
+              }
+            });
+          }
+          this.rolePermissionsMatrix = defaults;
+        },
 
-    canAccess(moduleKey) {
-      if (!this.session) return false;
-      const role = this.session.active_role;
-      if (role === 'Super Admin') return true;
-      return Boolean(this.permissionMatrix?.[role]?.[moduleKey]);
-    },
+    getRolePerm(role, moduleKey, action) {
+          return !!(this.rolePermissionsMatrix?.[role]?.[moduleKey]?.[action]);
+        },
 
-    async loadSettingsData() {
-      try {
-        const res = await this.runGas('apiGetAdminSettings', this.session.token);
-        this.usersList = res.users || [];
-        this.labsList = res.labs || [];
-        if (res.permission_matrix) {
-          this.initPermissionMatrix(res.permission_matrix);
-        }
-      } catch (e) {
-        this.showToast(e.message, 'error');
-      }
-    },
+    toggleRolePerm(role, moduleKey, action, checked) {
+          if (!this.rolePermissionsMatrix[role]) this.rolePermissionsMatrix[role] = {};
+          if (!this.rolePermissionsMatrix[role][moduleKey]) {
+            this.rolePermissionsMatrix[role][moduleKey] = { view: false, edit: false, delete: false };
+          }
+          this.rolePermissionsMatrix[role][moduleKey][action] = checked;
+          if ((action === 'edit' || action === 'delete') && checked) {
+            this.rolePermissionsMatrix[role][moduleKey].view = true;
+          }
+          if (action === 'view' && !checked) {
+            this.rolePermissionsMatrix[role][moduleKey].edit = false;
+            this.rolePermissionsMatrix[role][moduleKey].delete = false;
+          }
+        },
 
-    async savePermissionMatrix() {
-      try {
-        const res = await this.runGas('apiSavePermissionMatrix', this.session.token, this.permissionMatrix);
-        this.showToast(res.message || 'Matriks hak akses berhasil disimpan.');
-      } catch (e) {
-        this.showToast(e.message, 'error');
-      }
-    },
+    async resetDefaultPermissionMatrix() {
+          const ok = await this.askConfirm('Kembalikan pengaturan matriks hak akses ke standar default sistem SILARAS?', 'Reset Hak Akses');
+          if (!ok) return;
+          this.rolePermissionsMatrix = this.getDefaultPermissionMatrix();
+          this.showToast('Matriks dikembalikan ke default (klik Simpan untuk menerapkan ke server)');
+        },
+
+    async saveRolePermissionsMatrix() {
+          try {
+            const res = await this.runGas('apiSaveRolePermissions', this.session.token, this.rolePermissionsMatrix);
+            this.adminData.role_permissions = res.role_permissions || this.rolePermissionsMatrix;
+            this.showToast(res.message || 'Matriks hak akses berhasil disimpan');
+          } catch (e) {
+            this.showToast(e.message, 'error');
+          }
+        },
+
+    hasRole(role) {
+          return this.session?.active_role === role || this.isSuperAdmin();
+        },
+
+    isSuperAdmin() {
+          return (this.session?.roles || []).includes('Super Admin') || this.session?.active_role === 'Super Admin';
+        },
+
+    canView(menu) {
+          const activeRole = this.session?.active_role || '';
+          if (this.isSuperAdmin()) return true;
+          if (this.rolePermissionsMatrix?.[activeRole]?.[menu]) {
+            return !!this.rolePermissionsMatrix[activeRole][menu].view;
+          }
+          const map = {
+            master_data: ['Admin', 'Petugas Gudang', 'Laboran'],
+            inv_alat: ['Admin', 'Petugas Gudang', 'Laboran', 'Kepala Laboratorium'],
+            alat_rusak: ['Admin', 'Petugas Gudang', 'Laboran', 'Kepala Laboratorium'],
+            inv_bahan: ['Admin', 'Petugas Gudang', 'Laboran', 'Kepala Laboratorium'],
+            inv_kimia: ['Admin', 'Petugas Gudang', 'Laboran', 'Kepala Laboratorium'],
+            gudang: ['Admin', 'Petugas Gudang', 'Laboran'],
+            pinjam_alat: ['Admin', 'Laboran', 'Kepala Laboratorium', 'User'],
+            guna_bahan: ['Admin', 'Laboran', 'Kepala Laboratorium', 'User'],
+            booking_ruang: ['Admin', 'Laboran', 'Kepala Laboratorium', 'User'],
+            verifikasi: ['Admin', 'Laboran', 'Kepala Laboratorium'],
+            laporan: ['Admin', 'Petugas Gudang', 'Laboran', 'Kepala Laboratorium'],
+            audit: ['Admin', 'Kepala Laboratorium'],
+            settings: ['Admin']
+          };
+          return (map[menu] || []).includes(activeRole);
+        },
+
+    canEdit(menu) {
+          const activeRole = this.session?.active_role || '';
+          if (this.isSuperAdmin()) return true;
+          if (this.rolePermissionsMatrix?.[activeRole]?.[menu]) {
+            return !!this.rolePermissionsMatrix[activeRole][menu].edit;
+          }
+          if (menu === 'gudang') return ['Petugas Gudang', 'Admin'].includes(activeRole);
+          if (['inv_alat','alat_rusak','inv_bahan','inv_kimia','master_data'].includes(menu)) return ['Laboran', 'Admin', 'Petugas Gudang'].includes(activeRole);
+          return true;
+        },
+
+    canDelete(menu) {
+          const activeRole = this.session?.active_role || '';
+          if (this.isSuperAdmin()) return true;
+          if (this.rolePermissionsMatrix?.[activeRole]?.[menu]) {
+            return !!this.rolePermissionsMatrix[activeRole][menu].delete;
+          }
+          return ['Admin', 'Laboran', 'Petugas Gudang'].includes(activeRole);
+        },
 
     async loadAuditLogs() {
-      try {
-        const res = await this.runGas('apiGetAuditLogs', this.session.token);
-        this.auditLogs = res.logs || res || [];
-      } catch (e) {
-        this.showToast(e.message, 'error');
-      }
-    },
+          try {
+            const res = await this.runGas('apiGetAuditLogs', this.session.token);
+            this.auditLogsList = res.logs || [];
+          } catch (e) { this.showToast(e.message, 'error'); }
+        },
+
+    async loadAdminSettings() {
+          try {
+            const res = await this.runGas('apiGetAdminSettingsData', this.session.token);
+            this.adminData = res;
+            this.initPermissionMatrix(res.role_permissions || null);
+          } catch (e) { this.showToast(e.message, 'error'); }
+        },
+
+    openLabModal(lab) {
+          if (lab) {
+            this.labModal = {
+              open: true,
+              is_edit: true,
+              data: {
+                lab_id: lab.lab_id,
+                lab_name: lab.lab_name || '',
+                lab_position: lab.lab_position || lab.lab_code || '',
+                description: lab.description || '',
+                pic_name: lab.pic_name || '',
+                status: lab.status || 'active'
+              }
+            };
+          } else {
+            this.labModal = {
+              open: true,
+              is_edit: false,
+              data: {
+                lab_id: '',
+                lab_name: '',
+                lab_position: '',
+                description: '',
+                pic_name: '',
+                status: 'active'
+              }
+            };
+          }
+        },
+
+    async submitLabModal() {
+          try {
+            const res = await this.runGas('apiSaveLab', this.session.token, this.labModal.data);
+            this.labModal.open = false;
+            this.showToast(res.message || 'Data laboratorium berhasil disimpan');
+            await this.loadAdminSettings();
+            await this.loadPublicHome();
+          } catch (e) {
+            this.showToast(e.message, 'error');
+          }
+        },
+
+    async deleteLab(labId) {
+          const ok = await this.askConfirm('Yakin ingin menghapus laboratorium ini? Tindakan ini tidak dapat dibatalkan.', 'Hapus Laboratorium');
+          if (!ok) return;
+          try {
+            const res = await this.runGas('apiDeleteLab', this.session.token, labId);
+            this.showToast(res.message);
+            await this.loadAdminSettings();
+            await this.loadPublicHome();
+          } catch (e) { this.showToast(e.message, 'error'); }
+        },
+
+    openUserModal(u) {
+          if (u) {
+            this.userModal = { open: true, data: { ...u, new_password: '' } };
+          } else {
+            this.userModal = { open: true, data: { full_name: '', email: '', roles: ['User'], assigned_labs: [], status: 'active', new_password: '' } };
+          }
+        },
+
+    async submitUserModal() {
+          try {
+            const res = await this.runGas('apiSaveUserAdmin', this.session.token, this.userModal.data);
+            this.userModal.open = false;
+            this.showToast(res.message);
+            await this.loadAdminSettings();
+          } catch (e) { this.showToast(e.message, 'error'); }
+        }
   };
 }
