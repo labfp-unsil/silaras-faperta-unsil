@@ -65,8 +65,15 @@ export function createTransactionModule() {
         },
 
     confirmPickItem(c) {
+          if (Number(c.qty_available || 0) <= 0) {
+            this.showToast('Stok alat tersedia 0, tidak dapat dipilih untuk peminjaman.', 'error');
+            return;
+          }
           const qty = Number(c.pickQty || 1);
-          if (qty <= 0 || qty > c.qty_available) { this.showToast('Kuantitas melebihi stok tersedia', 'error'); return; }
+          if (qty <= 0 || qty > Number(c.qty_available)) {
+            this.showToast('Kuantitas melebihi stok tersedia', 'error');
+            return;
+          }
           const t = this.catalogPickerModal.target;
 
           if (t === 'whOut') {
@@ -104,8 +111,16 @@ export function createTransactionModule() {
         },
 
     async submitLoan() {
+          if (!this.loanForm.items || this.loanForm.items.length === 0) {
+            this.showToast('Pilih minimal 1 alat sebelum mengirim permohonan.', 'error');
+            return;
+          }
+          const invalidItem = this.loanForm.items.find(it => Number(it.qty || 0) <= 0);
+          if (invalidItem) {
+            this.showToast(`Jumlah pinjam untuk "${invalidItem.item_name}" tidak valid.`, 'error');
+            return;
+          }
           try {
-            const res = await this.runGas('apiCreateEquipmentLoan', this.session.token, this.loanForm);
             this.showToast(res.message);
             this.loanForm.items = [];
             await this.loadDashboard();
