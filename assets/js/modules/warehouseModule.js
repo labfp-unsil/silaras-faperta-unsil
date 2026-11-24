@@ -119,28 +119,43 @@ export function createWarehouseModule() {
         },
 
     openWhEditModal(item) {
-          this.whDetailModal.open = false;
-          this.whEditModal = {
-            open: true,
-            data: {
-              inv_id: item.inv_id,
-              item_id: item.item_id,
-              category: item.category || 'Bahan',
-              trx_date: item.entry_date || new Date().toISOString().slice(0, 10),
-              item_name: item.item_name || '',
-              maker_type_spec: item.maker_type_spec || '',
-              unit: item.unit || '',
-              batch_lot: item.batch_lot === '-' ? '' : (item.batch_lot || ''),
-              expiry_date: item.expiry_date || '',
-              cas_number: item.cas_number || '',
-              grade: item.grade || '',
-              ghs_symbol: item.ghs_symbol || '',
-              qty_available: Number(item.qty_available || 0),
-              photo_url: item.photo_url || '',
-              photo_base64: ''
-            }
-          };
-        },
+      this.whDetailModal.open = false;
+      this.whEditModal = {
+        open: true,
+        data: {
+          inv_id: item.inv_id,
+          item_id: item.item_id,
+          old_category: item.category || 'Bahan', // WAJIB ADA agar tidak dianggap pindah kategori
+          category: item.category || 'Bahan',
+          trx_date: item.entry_date || new Date().toISOString().slice(0, 10),
+          item_name: item.item_name || '',
+          maker_type_spec: item.maker_type_spec || '',
+          unit: item.unit || '',
+          batch_lot: item.batch_lot === '-' ? '' : (item.batch_lot || ''),
+          expiry_date: item.expiry_date || '',
+          cas_number: item.cas_number || '',
+          grade: item.grade || '',
+          ghs_symbol: item.ghs_symbol || '',
+          qty_available: Number(item.qty_available || 0),
+          photo_url: item.photo_url || '',
+          photo_base64: ''
+        }
+      };
+    },
+
+    getWhEditMergeCandidate() {
+      const d = this.whEditModal?.data;
+      if (!d || !d.open && !this.whEditModal?.open) return null;
+      if (d.category === 'Alat') return null;
+      const exp = String(d.expiry_date || '').trim();
+      const name = String(d.item_name || '').trim().toLowerCase();
+      return (this.warehouseData.stock || []).find(st =>
+        st.inv_id !== d.inv_id &&
+        st.category === d.category &&
+        (st.item_id === d.item_id || String(st.item_name || '').trim().toLowerCase() === name) &&
+        String(st.expiry_date || '').trim() === exp
+      ) || null;
+    },
 
     async submitWhEditModal() {
           try {
