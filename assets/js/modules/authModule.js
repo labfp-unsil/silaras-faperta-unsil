@@ -149,8 +149,15 @@ export function createAuthModule() {
     },
 
     async submitRequestResetOtp() {
+      const cleanEmail = String(this.forgotForm.email || '').trim().toLowerCase();
+      if (!cleanEmail) {
+        this.showToast('Masukkan alamat email terdaftar terlebih dahulu.', 'error');
+        return;
+      }
+      this.forgotForm.email = cleanEmail;
       try {
-        const res = await this.runGas('apiRequestPasswordResetOtp', this.forgotForm.email);
+        const res = await this.runGas('apiRequestPasswordResetOtp', cleanEmail);
+        this.forgotForm.otp = '';
         this.forgotForm.step = 2;
         this.showToast(res.message || 'Kode OTP telah dikirim ke email Anda');
       } catch (e) {
@@ -159,19 +166,34 @@ export function createAuthModule() {
     },
 
     async submitConfirmResetPassword() {
-      if (this.forgotForm.new_password !== this.forgotForm.confirm_password) {
-        this.showToast('Konfirmasi kata sandi baru tidak cocok', 'error');
+      const cleanEmail = String(this.forgotForm.email || '').trim().toLowerCase();
+      const cleanOtp = String(this.forgotForm.otp || '').trim();
+      const newPwd = String(this.forgotForm.new_password || '');
+      const confirmPwd = String(this.forgotForm.confirm_password || '');
+
+      if (!cleanOtp || cleanOtp.length !== 6) {
+        this.showToast('Masukkan 6 digit kode OTP dengan benar.', 'error');
         return;
       }
+      if (newPwd.length < 6) {
+        this.showToast('Kata sandi baru minimal 6 karakter.', 'error');
+        return;
+      }
+      if (newPwd !== confirmPwd) {
+        this.showToast('Konfirmasi kata sandi baru tidak cocok.', 'error');
+        return;
+      }
+
       try {
         const res = await this.runGas(
           'apiResetPasswordWithOtp',
-          this.forgotForm.email,
-          this.forgotForm.otp,
-          this.forgotForm.new_password
+          cleanEmail,
+          cleanOtp,
+          newPwd
         );
-        this.loginForm.email = this.forgotForm.email;
+        this.loginForm.email = cleanEmail;
         this.loginForm.password = '';
+        this.forgotForm = { step: 1, email: '', otp: '', new_password: '', confirm_password: '' };
         this.switchAuthMode('login');
         this.showToast(res.message || 'Kata sandi berhasil diperbarui. Silakan login.');
       } catch (e) {
