@@ -1,6 +1,7 @@
 import Alpine from 'https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/module.esm.js';
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-import { createConfigMixin } from './config/constants.js';
+import { CONFIG, createConfigMixin } from './config/constants.js';
 import { createGasApiMixin } from './services/gasApi.js';
 import { createDateHelperMixin } from './utils/dateHelper.js';
 import { createMediaHelperMixin } from './utils/mediaHelper.js';
@@ -92,6 +93,12 @@ Alpine.data('silarasApp', () => ({
           if (typeof fn === 'function') fn(val);
         },
 
+  realtimeChannel: null,
+
+  realtimeDebounceTimer: null,
+
+  realtimeSyncInFlight: false,
+
   initApp() {
           this.initPermissionMatrix(null);
           this.loadLocalInputHistories();
@@ -111,6 +118,84 @@ Alpine.data('silarasApp', () => ({
             }
           }
           this.loadPublicHome();
+          this.startRealtimeSync();
+        },
+
+  startRealtimeSync() {
+          // 1. Langganan perubahan database instan via Supabase Realtime WebSocket
+          if (!this.realtimeChannel && CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY) {
+            try {
+              const sb = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
+                auth: { persistSession: false, autoRefreshToken: false }
+              });
+              const watchTables = [
+                'inv_equipment',
+                'inv_materials',
+                'inv_chemicals',
+                'equipment_loans',
+                'room_bookings',
+                'material_usages',
+                'notifications'
+              ];
+              let ch = sb.channel('silaras-live-sync');
+              for (const tbl of watchTables) {
+                ch = ch.on('postgres_changes', { event: '*', schema: 'public', table: tbl }, () => {
+                  this.scheduleSilentSync();
+                });
+              }
+              this.realtimeChannel = ch.subscribe();
+            } catch (e) {
+              console.warn('Supabase Realtime fallback ke polling:', e);
+            }
+          }
+
+          // 2. Sinkronisasi otomatis saat jendela/tab browser kembali aktif
+          window.addEventListener('focus', () => {
+            if (this.session?.token) this.scheduleSilentSync(150);
+          });
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && this.session?.token) {
+              this.scheduleSilentSync(150);
+            }
+          });
+
+          // 3. Fallback sinkronisasi berkala setiap 12 detik jika WebSocket diblokir jaringan
+          setInterval(() => {
+            if (document.visibilityState === 'visible' && this.session?.token && !this.loading) {
+              this.syncActiveViewSilently();
+            }
+          }, 12000);
+        },
+
+  scheduleSilentSync(delayMs = 350) {
+          if (this.realtimeDebounceTimer) clearTimeout(this.realtimeDebounceTimer);
+          this.realtimeDebounceTimer = setTimeout(() => {
+            this.syncActiveViewSilently();
+          }, delayMs);
+        },
+
+  async syncActiveViewSilently() {
+          if (!this.session?.token || this.realtimeSyncInFlight || this.loading) return;
+          this.realtimeSyncInFlight = true;
+          try {
+            const menu = this.activeMenu;
+            await this.loadWorkspaceBundle(true);
+            if (['inv_alat', 'inv_bahan', 'inv_kimia'].includes(menu)) {
+              const cat = this.currentInvCategory();
+              if (this.invLocationFilter === 'ALL') {
+                this.inventoryList = this.invCache[cat] || [];
+              } else {
+                const res = await this.runGasSilent('apiGetInventory', this.session.token, cat, this.invLocationFilter);
+                this.inventoryList = res.items || [];
+              }
+            } else if (menu === 'alat_rusak') {
+              await this.loadDamagedEquipment(true);
+            }
+          } catch (_) {
+            // Abaikan error jaringan sementara pada sinkronisasi latar belakang
+          } finally {
+            this.realtimeSyncInFlight = false;
+          }
         },
 
   showToast(message, type = 'success') {
