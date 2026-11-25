@@ -2734,7 +2734,7 @@
 
   <!-- MODAL KATALOG BERGAMBAR (+ PILIH ITEM) -->
   <div x-show="catalogPickerModal.open" x-cloak class="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+    <div class="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl space-y-4">
       <div class="flex justify-between items-center border-b border-slate-100 pb-3">
         <div>
           <h3 class="font-bold text-emerald-950">
@@ -2748,28 +2748,28 @@
       <div x-show="filteredPickerCatalog().length === 0" class="py-8 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
         Tidak ada stok barang tersedia yang sesuai pada lokasi ini.
       </div>
-      <div x-show="filteredPickerCatalog().length > 0" class="grid sm:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-1">
+      <div x-show="filteredPickerCatalog().length > 0" class="grid sm:grid-cols-2 gap-3 max-h-[65vh] overflow-y-auto pr-1">
         <template x-for="(c, idx) in filteredPickerCatalog()" :key="(c.inv_id || c.item_id || 'item') + '-' + idx">
-          <div class="border rounded-xl p-3 flex items-center justify-between gap-2.5 transition"
+          <div class="border rounded-xl p-3 flex flex-col justify-between gap-2.5 transition"
                :class="Number(c.qty_available || 0) <= 0 ? 'border-slate-200 bg-slate-100/80 opacity-65' : 'border-slate-200 bg-slate-50/40 hover:border-emerald-600'">
-            <div class="flex items-center gap-2.5 min-w-0">
-              <img x-show="c.photo_url" :src="normalizeDriveImgUrl(c.photo_url)" class="w-11 h-11 rounded-lg object-cover border shrink-0" />
-              <div x-show="!c.photo_url" class="w-11 h-11 rounded-lg bg-slate-200/70 flex items-center justify-center shrink-0 text-slate-400">
+            <div class="flex items-start gap-2.5">
+              <img x-show="c.photo_url" :src="normalizeDriveImgUrl(c.photo_url)" class="w-12 h-12 rounded-lg object-cover border shrink-0" />
+              <div x-show="!c.photo_url" class="w-12 h-12 rounded-lg bg-slate-200/70 flex items-center justify-center shrink-0 text-slate-400">
                 <i class="fa-solid fa-box"></i>
               </div>
-              <div class="min-w-0">
+              <div class="flex-1 min-w-0">
                 <span x-show="(catalogPickerModal.category === 'ALL' && c.category) || c.item_id"
                       class="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800"
                       x-text="(catalogPickerModal.category === 'ALL' && c.category ? c.category + ' • ' : '') + (c.item_id || '')"></span>
-                <p class="font-bold text-xs text-slate-900 truncate mt-0.5" x-text="c.item_name"></p>
-                <p x-show="c.maker_type_spec" class="text-[10px] text-slate-500 truncate" x-text="c.maker_type_spec"></p>
-                <p class="text-[11px]" :class="Number(c.qty_available || 0) <= 0 ? 'text-red-600 font-bold' : 'text-emerald-700'">
+                <p class="font-bold text-xs text-slate-900 leading-snug break-words mt-0.5" x-text="c.item_name"></p>
+                <p x-show="c.maker_type_spec && c.maker_type_spec !== '-'" class="text-[10px] text-slate-500 leading-snug break-words" x-text="c.maker_type_spec"></p>
+                <p class="text-[11px] mt-0.5" :class="Number(c.qty_available || 0) <= 0 ? 'text-red-600 font-bold' : 'text-emerald-700'">
                   Tersedia: <b x-text="c.qty_available + ' ' + c.unit"></b>
                   <span x-show="Number(c.qty_available || 0) <= 0">(Stok Habis)</span>
                 </p>
               </div>
             </div>
-            <div class="flex items-center gap-1 shrink-0">
+            <div class="flex items-center justify-end gap-1.5 pt-2 border-t border-slate-100">
               <input type="number"
                      :step="(catalogPickerModal.category === 'Alat' || c.category === 'Alat') ? 1 : 'any'"
                      :min="(catalogPickerModal.category === 'Alat' || c.category === 'Alat') ? 1 : 0.01"
