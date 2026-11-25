@@ -711,28 +711,10 @@
         </button>
       </div>
 
-      <!-- DROPDOWN PERAN & LOKASI AKTIF (active_lab_id) DI SIDEBAR -->
-      <div x-if="session" class="p-3 bg-emerald-950/60 border-b border-emerald-800 space-y-2 text-xs">
-        <div>
-          <p class="font-bold text-white truncate" x-text="session?.full_name"></p>
-          <p class="text-[11px] text-emerald-300 truncate" x-text="session?.email"></p>
-        </div>
-        <div class="grid grid-cols-1 gap-1.5">
-          <select x-model="session.active_role" @change="switchContext()" class="w-full bg-emerald-900 border border-emerald-700 rounded-lg px-2 py-1.5 text-white text-xs focus:outline-none focus:border-lime-400">
-            <template x-for="r in session?.roles || []" :key="r">
-              <option :value="r" x-text="'Peran: ' + r"></option>
-            </template>
-          </select>
-          <select x-show="(session?.accessible_labs || []).length > 0 || isSuperAdmin()"
-                  x-model="session.active_lab_id"
-                  @change="switchContext()"
-                  class="w-full bg-emerald-900 border border-emerald-700 rounded-lg px-2 py-1.5 text-lime-300 text-xs focus:outline-none focus:border-lime-400">
-            <option value="ALL">Lokasi: Semua Lokasi Akses</option>
-            <template x-for="l in session?.accessible_labs || []" :key="l.lab_id">
-              <option :value="l.lab_id" x-text="'Lokasi: ' + l.lab_name"></option>
-            </template>
-          </select>
-        </div>
+      <!-- INFORMASI AKUN & EMAIL PENGGUNA DI SIDEBAR -->
+      <div x-if="session" class="p-3.5 bg-emerald-950/60 border-b border-emerald-800 text-xs">
+        <p class="font-bold text-white truncate" x-text="session?.full_name"></p>
+        <p class="text-[11px] text-emerald-300 truncate mt-0.5" x-text="session?.email"></p>
       </div>
 
       <nav class="flex-1 overflow-y-auto p-3 space-y-4 text-sm">
@@ -823,7 +805,8 @@
             <span x-text="getActiveLabLabel()"></span>
           </span>
           <span class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-semibold">
-            <i class="fa-solid fa-user-shield"></i> <span x-text="session?.active_role"></span>
+            <i class="fa-solid fa-user-shield"></i>
+            <span x-text="(session?.roles || [session?.active_role]).filter(Boolean).join(', ')"></span>
           </span>
           <button type="button" @click="refreshActiveView()" class="p-2 rounded-lg text-slate-500 hover:bg-slate-100" title="Muat Ulang Data">
             <i class="fa-solid fa-rotate" :class="syncing ? 'animate-spin text-emerald-700' : ''"></i>
