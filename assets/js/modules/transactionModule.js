@@ -2,6 +2,21 @@ export function createTransactionModule() {
   return {
     loanForm: { lab_id: '', loan_date: new Date().toISOString().slice(0,10), due_date: new Date().toISOString().slice(0,10), purpose: '', items: [] },
 
+    uniqueLoanItems(items) {
+          const map = new Map();
+          for (const it of items || []) {
+            const key = String(it.item_name || it.item_id || it.loan_item_id || '').trim().toLowerCase();
+            if (!key) continue;
+            if (!map.has(key)) {
+              map.set(key, { ...it });
+            } else if (it.loan_item_id !== map.get(key).loan_item_id) {
+              const existing = map.get(key);
+              existing.qty_requested = Number(existing.qty_requested || 0) + Number(it.qty_requested || 0);
+            }
+          }
+          return Array.from(map.values());
+        },
+
     usageForm: { category: 'Bahan', lab_id: '', usage_date: new Date().toISOString().slice(0,10), purpose: '', items: [] },
 
     bookingForm: { lab_id: '', pic_name: '', unit_prodi: '', activity_type: 'Praktikum', activity_title: '', booking_date: new Date().toISOString().slice(0,10), start_time: '08:00', end_time: '10:00', participant_count: 20, equipment_items: [], material_items: [], chemical_items: [] },
