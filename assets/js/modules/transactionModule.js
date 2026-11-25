@@ -10,9 +10,10 @@ export function createTransactionModule() {
 
     filteredApprovalList(list) {
           const items = list || [];
-          const activeLab = this.session?.active_lab_id;
-          if (!activeLab || activeLab === 'ALL' || activeLab === 'GUDANG') return items;
-          return items.filter(item => item.lab_id === activeLab);
+          if (this.isSuperAdmin()) return items;
+          const assigned = Array.isArray(this.session?.assigned_labs) ? this.session.assigned_labs : [];
+          if (assigned.length === 0 || assigned.includes('ALL')) return items;
+          return items.filter(item => assigned.includes(item.lab_id));
         },
 
     canApproveKalab() {
