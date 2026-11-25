@@ -1745,7 +1745,7 @@
                         <td class="px-3 py-2"><b x-text="b.lab_name"></b><br><span x-text="'[' + b.activity_type + '] ' + b.activity_title"></span></td>
                         <td class="px-3 py-2" x-text="normalizeYMD(b.booking_date) + ' (' + b.start_time + '-' + b.end_time + ')'"></td>
                         <td class="px-3 py-2 font-bold" x-text="b.status"></td>
-                        <td class="px-3 py-2 space-x-1 whitespace-nowrap">
+                        <td class="px-3 py-2 space-x-1 space-y-1">
                           <button type="button" x-show="b.status === 'pending_verification' && hasRole('Laboran')"
                                   @click="processStep('booking', b.booking_id, 'verify_laboran')"
                                   class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold">
@@ -1760,6 +1760,20 @@
                                   @click="processStep('booking', b.booking_id, 'reject')"
                                   class="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold">
                             Tolak
+                          </button>
+
+                          <!-- Aksi User Pemohon: Batalkan (saat diajukan / diverifikasi laboran) -->
+                          <button type="button" x-show="['pending_verification','verified_laboran'].includes(b.status) && b.user_id === session?.user_id"
+                                  @click="cancelTransaction('booking', b.booking_id)"
+                                  class="px-2.5 py-1 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-bold">
+                            Batalkan
+                          </button>
+
+                          <!-- Khusus Super Admin: Hapus Data -->
+                          <button type="button" x-show="isSuperAdmin()"
+                                  @click="deleteTransaction('booking', b.booking_id)"
+                                  class="px-2.5 py-1 bg-rose-700 hover:bg-rose-800 text-white rounded-lg font-bold">
+                            <i class="fa-solid fa-trash mr-1"></i>Hapus Data
                           </button>
                         </td>
                       </tr>
@@ -1790,42 +1804,65 @@
                       <tr>
                         <td class="px-3 py-2 font-mono font-bold" x-text="l.loan_id"></td>
                         <td class="px-3 py-2"><b x-text="l.borrower_name"></b><br><span x-text="l.lab_name"></span></td>
-                        <td class="px-3 py-2">
+                        <td class="px-3 py-2 space-y-0.5">
                           <template x-for="it in l.items" :key="it.loan_item_id">
-                            <div x-text="it.item_name + ' (' + it.qty_requested + ') [' + it.return_status + ']'"></div>
+                            <div x-text="it.item_name + ' (' + it.qty_requested + ') [' + (it.return_condition || it.initial_condition || 'Baik') + ']'"></div>
                           </template>
                         </td>
                         <td class="px-3 py-2 font-bold" x-text="l.status"></td>
-                        <td class="px-3 py-2 space-x-1 whitespace-nowrap">
+                        <td class="px-3 py-2 space-x-1 space-y-1">
+                          <!-- Aksi Laboran: Edit Item Alat & Verifikasi -->
+                          <button type="button" x-show="['pending_verification','verified_laboran'].includes(l.status) && hasRole('Laboran')"
+                                  @click="openEditLoanItemsModal(l)"
+                                  class="px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-bold">
+                            <i class="fa-solid fa-pen-to-square mr-1"></i>Edit Alat
+                          </button>
                           <button type="button" x-show="l.status === 'pending_verification' && hasRole('Laboran')"
                                   @click="processStep('loan', l.loan_id, 'verify_laboran')"
                                   class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold">
                             Verifikasi Laboran
                           </button>
+
+                          <!-- Aksi Kepala Laboratorium: Setujui -->
                           <button type="button" x-show="['pending_verification','verified_laboran'].includes(l.status) && canApproveKalab()"
                                   @click="processStep('loan', l.loan_id, 'approve_kalab')"
                                   class="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold">
                             <i class="fa-solid fa-check-double mr-1"></i>Setujui (Ka. Lab)
                           </button>
+
+                          <!-- Aksi Tolak (Laboran / Ka. Lab) -->
                           <button type="button" x-show="['pending_verification','verified_laboran'].includes(l.status) && (hasRole('Laboran') || canApproveKalab())"
                                   @click="processStep('loan', l.loan_id, 'reject')"
                                   class="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold">
                             Tolak
                           </button>
-                          <button type="button" x-show="l.status === 'approved' && hasRole('Laboran')"
-                                  @click="processStep('loan', l.loan_id, 'handover')"
-                                  class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">
-                            Serah Terima
+
+                          <!-- Aksi User Peminjam: Batalkan (saat diajukan / diverifikasi laboran) -->
+                          <button type="button" x-show="['pending_verification','verified_laboran'].includes(l.status) && l.user_id === session?.user_id"
+                                  @click="cancelTransaction('loan', l.loan_id)"
+                                  class="px-2.5 py-1 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-bold">
+                            Batalkan
                           </button>
-                          <button type="button" x-show="['active_borrowed','returned_partial'].includes(l.status) && l.user_id === session?.user_id"
+
+                          <!-- Aksi User Peminjam: Pengembalian (setelah disetujui Ka. Lab / status borrowed) -->
+                          <button type="button" x-show="['borrowed','approved','active_borrowed','returned_partial'].includes(l.status) && l.user_id === session?.user_id"
                                   @click="userRequestReturn(l.loan_id)"
                                   class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold">
-                            Ajukan Kembali
+                            <i class="fa-solid fa-rotate-left mr-1"></i>Pengembalian
                           </button>
-                          <button type="button" x-show="['active_borrowed','returned_partial'].includes(l.status) && hasRole('Laboran')"
+
+                          <!-- Aksi Laboran & Kepala Lab: Diterima (setelah user klik Pengembalian) -->
+                          <button type="button" x-show="l.status === 'return_requested' && (hasRole('Laboran') || canApproveKalab())"
                                   @click="openReturnAssessmentModal(l)"
                                   class="px-2.5 py-1 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg font-bold">
-                            Terima & Nilai Kondisi
+                            <i class="fa-solid fa-clipboard-check mr-1"></i>Diterima
+                          </button>
+
+                          <!-- Khusus Super Admin: Hapus Data -->
+                          <button type="button" x-show="isSuperAdmin()"
+                                  @click="deleteTransaction('loan', l.loan_id)"
+                                  class="px-2.5 py-1 bg-rose-700 hover:bg-rose-800 text-white rounded-lg font-bold">
+                            <i class="fa-solid fa-trash mr-1"></i>Hapus Data
                           </button>
                         </td>
                       </tr>
@@ -1862,7 +1899,7 @@
                           </template>
                         </td>
                         <td class="px-3 py-2 font-bold" x-text="u.status"></td>
-                        <td class="px-3 py-2 space-x-1 whitespace-nowrap">
+                        <td class="px-3 py-2 space-x-1 space-y-1">
                           <button type="button" x-show="u.status === 'pending_verification' && hasRole('Laboran')"
                                   @click="processStep('usage', u.usage_id, 'verify_laboran')"
                                   class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold">
@@ -1878,10 +1915,19 @@
                                   class="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold">
                             Tolak
                           </button>
-                          <button type="button" x-show="u.status === 'approved' && hasRole('Laboran')"
-                                  @click="processStep('usage', u.usage_id, 'dispense')"
-                                  class="px-2.5 py-1 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg font-bold">
-                            Serahkan (FEFO)
+
+                          <!-- Aksi User Pemohon: Batalkan (saat diajukan / diverifikasi laboran) -->
+                          <button type="button" x-show="['pending_verification','verified_laboran'].includes(u.status) && u.user_id === session?.user_id"
+                                  @click="cancelTransaction('usage', u.usage_id)"
+                                  class="px-2.5 py-1 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-bold">
+                            Batalkan
+                          </button>
+
+                          <!-- Khusus Super Admin: Hapus Data -->
+                          <button type="button" x-show="isSuperAdmin()"
+                                  @click="deleteTransaction('usage', u.usage_id)"
+                                  class="px-2.5 py-1 bg-rose-700 hover:bg-rose-800 text-white rounded-lg font-bold">
+                            <i class="fa-solid fa-trash mr-1"></i>Hapus Data
                           </button>
                         </td>
                       </tr>
@@ -3067,6 +3113,68 @@
         </button>
         <button type="button" @click="resolvePromptModal(promptModal.value)" class="px-4 py-2 rounded-xl bg-silaras-dark text-white text-xs font-bold hover:bg-emerald-900">
           Simpan
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- MODAL EDIT ITEM ALAT PEMINJAMAN (KHUSUS LABORAN) -->
+  <div x-show="editLoanModal.open" x-cloak class="fixed inset-0 z-[70] bg-slate-900/60 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <div>
+          <h3 class="font-bold text-base text-emerald-950" x-text="'Edit Item Alat Peminjaman (' + editLoanModal.loanId + ')'"></h3>
+          <p class="text-[11px] text-slate-500">Ubah jenis alat, jumlah unit, atau kondisi awal alat sebelum disetujui Kepala Lab.</p>
+        </div>
+        <button type="button" @click="editLoanModal.open = false" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <div class="space-y-2.5 max-h-[55vh] overflow-y-auto pr-1 text-xs">
+        <template x-for="(it, idx) in editLoanModal.items" :key="idx">
+          <div class="grid grid-cols-12 gap-2 items-center bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+            <div class="col-span-5">
+              <label class="block text-[10px] font-bold text-slate-500 mb-0.5">Item Alat</label>
+              <select x-model="it.eq_inv_id"
+                      @change="const found = editLoanModal.labEquipments.find(e => e.eq_inv_id === it.eq_inv_id); if (found) { it.item_id = found.item_id; it.item_name = found.item_name; }"
+                      class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-semibold">
+                <template x-for="eq in editLoanModal.labEquipments" :key="eq.eq_inv_id">
+                  <option :value="eq.eq_inv_id" x-text="eq.item_name + ' (Sisa: ' + eq.qty_available + ')'"></option>
+                </template>
+              </select>
+            </div>
+            <div class="col-span-3">
+              <label class="block text-[10px] font-bold text-slate-500 mb-0.5">Jumlah</label>
+              <input type="number" min="1" x-model.number="it.qty_requested" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-bold" />
+            </div>
+            <div class="col-span-3">
+              <label class="block text-[10px] font-bold text-slate-500 mb-0.5">Kondisi</label>
+              <select x-model="it.initial_condition" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-semibold">
+                <option value="Baik">Baik</option>
+                <option value="Rusak Ringan">Rusak Ringan</option>
+                <option value="Maintenance">Maintenance</option>
+              </select>
+            </div>
+            <div class="col-span-1 flex justify-end pt-4">
+              <button type="button" @click="editLoanModal.items.splice(idx, 1)" class="text-red-600 hover:text-red-800 p-1" title="Hapus baris">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <button type="button"
+                @click="const firstEq = editLoanModal.labEquipments[0]; if (firstEq) editLoanModal.items.push({ eq_inv_id: firstEq.eq_inv_id, item_id: firstEq.item_id, item_name: firstEq.item_name, qty_requested: 1, initial_condition: 'Baik' })"
+                class="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-700 text-emerald-900 font-bold hover:bg-emerald-100">
+          <i class="fa-solid fa-plus mr-1"></i> Tambah Baris Alat
+        </button>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+        <button type="button" @click="editLoanModal.open = false" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-600 text-xs font-semibold">
+          Batal
+        </button>
+        <button type="button" @click="saveEditedLoanItems()" class="px-4 py-2 rounded-xl bg-silaras-dark text-white text-xs font-bold hover:bg-emerald-900">
+          <i class="fa-solid fa-check mr-1"></i> Simpan Perubahan Item
         </button>
       </div>
     </div>
