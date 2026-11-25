@@ -356,6 +356,70 @@ Alpine.data('silarasApp', () => ({
           }
         },
 
+  navigateFromDashCard(cardType) {
+          if (cardType === 'labs') {
+            if (this.canView('settings')) {
+              this.navigate('settings');
+              this.adminTab = 'labs';
+            } else {
+              this.navigate('inv_alat');
+            }
+          } else if (cardType === 'pending_verification' || cardType === 'pending_approval') {
+            if (this.canView('verifikasi')) {
+              this.navigate('verifikasi');
+            } else {
+              this.navigate('pinjam_alat');
+            }
+          } else if (cardType === 'active_loans') {
+            this.navigate('pinjam_alat');
+          }
+        },
+
+  unreadNotificationsCount() {
+          return (this.dashData?.notifications || []).filter((n) => !n.is_read).length;
+        },
+
+  async openNotification(notif) {
+          if (!notif) return;
+          // 1. Tandai sudah dibaca secara instan di UI & sinkronkan ke backend
+          if (!notif.is_read) {
+            notif.is_read = true;
+            if (this.session?.token && notif.notif_id) {
+              this.runGasSilent('apiMarkNotificationRead', this.session.token, notif.notif_id).catch(() => {});
+            }
+          }
+
+          // 2. Tentukan menu tujuan berdasarkan tipe atau kode transaksi di judul/pesan
+          const t = String(notif.type || '').toLowerCase();
+          const text = `${notif.title || ''} ${notif.message || ''}`.toUpperCase();
+          const isNewRequest = text.includes('BARU') || text.includes('PERMINTAAN PENGEMBALIAN');
+
+          if (t === 'loan' || text.includes('LN-')) {
+            this.navigate(isNewRequest && this.canView('verifikasi') ? 'verifikasi' : 'pinjam_alat');
+          } else if (t === 'booking' || text.includes('BK-') || text.includes('RUANGAN')) {
+            this.navigate(isNewRequest && this.canView('verifikasi') ? 'verifikasi' : 'booking_ruang');
+          } else if (t === 'usage' || text.includes('US-') || text.includes('BAHAN')) {
+            this.navigate(isNewRequest && this.canView('verifikasi') ? 'verifikasi' : 'guna_bahan');
+          } else if (t === 'warehouse' || text.includes('GUDANG')) {
+            this.navigate(this.canView('gudang') ? 'gudang' : 'dashboard');
+          } else if (t === 'inventory' || text.includes('STOK') || text.includes('ALAT')) {
+            this.navigate('inv_alat');
+          }
+        },
+
+  async markAllNotificationsRead() {
+          const list = this.dashData?.notifications || [];
+          const hasUnread = list.some((n) => !n.is_read);
+          if (!hasUnread) return;
+          list.forEach((n) => { n.is_read = true; });
+          if (this.session?.token) {
+            try {
+              await this.runGasSilent('apiMarkAllNotificationsRead', this.session.token);
+              this.showToast('Semua notifikasi ditandai sudah dibaca');
+            } catch (_) {}
+          }
+        },
+
   async loadDashboard(silent = false) {
           try {
             const runner = silent ? this.runGasSilent.bind(this) : this.runGas.bind(this);
