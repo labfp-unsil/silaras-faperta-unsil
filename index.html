@@ -712,9 +712,12 @@
       </div>
 
       <!-- INFORMASI AKUN & EMAIL PENGGUNA DI SIDEBAR -->
-      <div x-if="session" class="p-3.5 bg-emerald-950/60 border-b border-emerald-800 text-xs">
+      <div x-show="session" class="p-3.5 bg-emerald-950/60 border-b border-emerald-800 text-xs">
         <p class="font-bold text-white truncate" x-text="session?.full_name"></p>
         <p class="text-[11px] text-emerald-300 truncate mt-0.5" x-text="session?.email"></p>
+        <button type="button" @click="logout()" class="mt-2.5 w-full py-1.5 px-3 rounded-xl bg-red-600/90 hover:bg-red-600 text-white text-xs font-bold flex items-center justify-center gap-2 transition">
+          <i class="fa-solid fa-right-from-bracket"></i> Keluar (Logout)
+        </button>
       </div>
 
       <nav class="flex-1 overflow-y-auto p-3 space-y-4 text-sm">
@@ -782,12 +785,6 @@
           </button>
         </div>
       </nav>
-
-      <div class="p-3 border-t border-emerald-800">
-        <button type="button" @click="logout()" class="w-full py-2 px-3 rounded-xl bg-red-600/90 hover:bg-red-600 text-white text-xs font-bold flex items-center justify-center gap-2 transition">
-          <i class="fa-solid fa-right-from-bracket"></i> Keluar (Logout)
-        </button>
-      </div>
     </aside>
 
     <!-- Konten Utama Dashboard -->
