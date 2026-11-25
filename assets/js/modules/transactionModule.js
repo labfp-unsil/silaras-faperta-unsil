@@ -301,27 +301,6 @@ export function createTransactionModule() {
           }
         },
 
-    openEditLoanItemsModal(loan) {
-          const labEqs = (this.invData?.inv_alat || this.publicData?.equipments || []).filter(
-            (e) => e.location_id === loan.lab_id
-          );
-          const clonedItems = (loan.items || []).map((it) => ({
-            loan_item_id: it.loan_item_id,
-            eq_inv_id: it.eq_inv_id,
-            item_id: it.item_id,
-            item_name: it.item_name,
-            qty_requested: Number(it.qty_requested || 1),
-            initial_condition: it.initial_condition || 'Baik',
-          }));
-          this.editLoanModal = {
-            open: true,
-            loanId: loan.loan_id,
-            labId: loan.lab_id,
-            items: clonedItems,
-            labEquipments: labEqs,
-          };
-        },
-
     async saveEditedLoanItems() {
           if (!this.editLoanModal.items || this.editLoanModal.items.length === 0) {
             this.showToast('Minimal harus terdapat 1 item alat.', 'error');
@@ -356,34 +335,123 @@ export function createTransactionModule() {
           } catch (e) { this.showToast(e.message, 'error'); }
         },
 
-    async openReturnAssessmentModal(loan) {
-          const items = loan.items || [];
+    canManageReturn() {
+          return this.isSuperAdmin() || this.hasRole('Kepala Laboratorium') || this.hasRole('Laboran');
+        },
+
+    renderLoanItemsHtml(items) {
+          const unique = this.uniqueLoanItems(items);
+          if (unique.length === 0) return '<span class="text-slate-400">-</span>';
+          const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          return unique
+            .map((it) => {
+              const cond = it.return_condition || it.initial_condition || 'Baik';
+              return `<div>${esc(it.item_name)} (${Number(it.qty_requested || 0)}) [${esc(cond)}]</div>`;
+            })
+            .join('');
+        },
+
+    getTransactionNotes(row) {
+          if (!row) return '-';
+          const parts = [];
+          if (row.rejection_reason) {
+            const prefix = row.status === 'cancelled' ? 'Alasan Batal: ' : 'Alasan Tolak: ';
+            parts.push(prefix + row.rejection_reason);
+          }
+          if (row.return_notes) parts.push('Catatan Kembali: ' + row.return_notes);
+          if (row.notes && !parts.includes(row.notes)) parts.push(row.notes);
+          if (Array.isArray(row.items)) {
+            row.items.forEach((it) => {
+              if (it.condition_notes) parts.push(`${it.item_name}: ${it.condition_notes}`);
+            });
+          }
+          return parts.length > 0 ? parts.join(' | ') : '-';
+        },
+
+    returnAssessmentModal: { open: false, loanId: '', borrowerName: '', labName: '', items: [], notes: '' },
+
+    async openEditLoanItemsModal(loan) {
+          let allEqs = Array.isArray(this.invCache?.Alat) && this.invCache.Alat.length > 0
+            ? this.invCache.Alat
+            : [];
+          if (allEqs.length === 0) {
+            try {
+              const res = await this.runGas('apiGetInventory', this.session.token, 'Alat', loan.lab_id);
+              allEqs = res?.items || [];
+            } catch (e) {}
+          }
+          const labEqs = allEqs.filter((e) => e.location_id === loan.lab_id);
+          const uniqueItems = this.uniqueLoanItems(loan.items || []);
+          const clonedItems = uniqueItems.map((it) => {
+            const matchedEq = labEqs.find((e) => e.eq_inv_id === it.eq_inv_id) ||
+                              labEqs.find((e) => e.item_id === it.item_id);
+            return {
+              loan_item_id: it.loan_item_id,
+              eq_inv_id: matchedEq ? matchedEq.eq_inv_id : it.eq_inv_id,
+              item_id: it.item_id,
+              item_name: matchedEq ? matchedEq.item_name : it.item_name,
+              qty_requested: Number(it.qty_requested || 1),
+              initial_condition: ['Baik', 'Rusak Ringan', 'Rusak Berat'].includes(it.initial_condition)
+                ? it.initial_condition
+                : 'Baik',
+            };
+          });
+          this.editLoanModal = {
+            open: true,
+            loanId: loan.loan_id,
+            labId: loan.lab_id,
+            items: clonedItems,
+            labEquipments: labEqs,
+          };
+        },
+
+    openReturnAssessmentModal(loan) {
+          const items = this.uniqueLoanItems(loan.items || []);
           if (items.length === 0) return;
-          const summaryList = items.map((it) => `• ${it.item_name} (${it.qty_requested} unit)`).join('\n');
-          const cond = await this.askPrompt(
-            `Konfirmasi Penerimaan & Kondisi Pengembalian Alat:\n${summaryList}`,
-            'Baik',
-            'Penerimaan Pengembalian Alat',
-            '',
-            ['Baik', 'Rusak Ringan', 'Rusak Berat']
-          );
-          if (!cond) return;
-          const notes = await this.askPrompt('Catatan kondisi / kerusakan (opsional):', '', 'Catatan Pengembalian', 'Tulis catatan kondisi...');
-          if (notes === null) return;
-          try {
-            const payloadItems = items.map((it) => ({
+          this.returnAssessmentModal = {
+            open: true,
+            loanId: loan.loan_id,
+            borrowerName: loan.borrower_name || '',
+            labName: loan.lab_name || '',
+            notes: '',
+            items: items.map((it) => ({
               loan_item_id: it.loan_item_id,
               eq_inv_id: it.eq_inv_id,
               item_id: it.item_id,
-              qty_returned: it.qty_requested,
-              return_condition: cond,
-              condition_notes: notes || '',
+              item_name: it.item_name,
+              qty_requested: Number(it.qty_requested || 1),
+              return_condition: 'Baik',
+              condition_notes: '',
+            })),
+          };
+        },
+
+    async submitReturnAssessmentModal() {
+          const modal = this.returnAssessmentModal;
+          if (!modal.loanId || modal.items.length === 0) return;
+          try {
+            const payloadItems = modal.items.map((it) => ({
+              loan_item_id: it.loan_item_id,
+              eq_inv_id: it.eq_inv_id,
+              item_id: it.item_id,
+              qty_returned: Number(it.qty_requested || 1),
+              return_condition: it.return_condition || 'Baik',
+              condition_notes: it.condition_notes || modal.notes || '',
             }));
-            const res = await this.runGas('apiProcessLoanReturnAssessment', this.session.token, loan.loan_id, payloadItems);
+            const res = await this.runGas(
+              'apiProcessLoanReturnAssessment',
+              this.session.token,
+              modal.loanId,
+              payloadItems,
+              modal.notes || ''
+            );
             this.showToast(res.message || 'Pengembalian alat diterima dan stok diperbarui');
+            this.returnAssessmentModal.open = false;
             await this.loadWorkspaceBundle(true);
             await this.loadPublicHome();
-          } catch (e) { this.showToast(e.message, 'error'); }
+          } catch (e) {
+            this.showToast(e.message, 'error');
+          }
         }
   };
 }
