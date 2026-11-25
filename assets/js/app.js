@@ -182,6 +182,18 @@ Alpine.data('silarasApp', () => ({
           }
         },
 
+  normalizeDashboardPayload(res) {
+          if (!res || typeof res !== 'object') return this.dashData;
+          const src = res.dashboard && typeof res.dashboard === 'object' ? res.dashboard : res;
+          return {
+            stats: src.stats || this.dashData.stats || {},
+            bookings: Array.isArray(src.bookings) ? src.bookings : (Array.isArray(src.room_bookings) ? src.room_bookings : []),
+            loans: Array.isArray(src.loans) ? src.loans : (Array.isArray(src.equipment_loans) ? src.equipment_loans : []),
+            usages: Array.isArray(src.usages) ? src.usages : (Array.isArray(src.material_usages) ? src.material_usages : []),
+            notifications: Array.isArray(src.notifications) ? src.notifications : []
+          };
+        },
+
   async loadWorkspaceBundle(silent = false) {
           if (!this.session?.token) return;
           try {
@@ -189,11 +201,11 @@ Alpine.data('silarasApp', () => ({
             const res = await runner('apiGetWorkspaceBundle', this.session.token);
             if (!res) return;
 
-            this.dashData = res.dashboard || this.dashData;
+            this.dashData = this.normalizeDashboardPayload(res);
             this.invCache = {
-              Alat: res.inv_alat || [],
-              Bahan: res.inv_bahan || [],
-              'Bahan Kimia': res.inv_kimia || []
+              Alat: res.inv_alat || res.inv_equipment || [],
+              Bahan: res.inv_bahan || res.inv_materials || [],
+              'Bahan Kimia': res.inv_kimia || res.inv_chemicals || []
             };
             if (['inv_alat','inv_bahan','inv_kimia'].includes(this.activeMenu)) {
               this.inventoryList = this.invCache[this.currentInvCategory()] || [];
@@ -250,7 +262,7 @@ Alpine.data('silarasApp', () => ({
           try {
             const runner = silent ? this.runGasSilent.bind(this) : this.runGas.bind(this);
             const res = await runner('apiGetDashboardData', this.session.token);
-            this.dashData = res;
+            this.dashData = this.normalizeDashboardPayload(res);
           } catch (e) {
             this.showToast(e.message, 'error');
           }
