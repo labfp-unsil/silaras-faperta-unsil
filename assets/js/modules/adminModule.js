@@ -109,20 +109,26 @@ export function createAdminModule() {
           }
         },
 
+    getUserRoles() {
+          const roles = Array.isArray(this.session?.roles) && this.session.roles.length > 0
+            ? this.session.roles
+            : (this.session?.active_role ? [this.session.active_role] : []);
+          return roles;
+        },
+
     hasRole(role) {
-          return this.session?.active_role === role || this.isSuperAdmin();
+          return this.getUserRoles().includes(role) || this.isSuperAdmin();
         },
 
     isSuperAdmin() {
-          return (this.session?.roles || []).includes('Super Admin') || this.session?.active_role === 'Super Admin';
+          return this.getUserRoles().includes('Super Admin');
         },
 
     canView(menu) {
-          const activeRole = this.session?.active_role || '';
+          const userRoles = this.getUserRoles();
+          if (userRoles.length === 0) return false;
           if (this.isSuperAdmin()) return true;
-          if (this.rolePermissionsMatrix?.[activeRole]?.[menu]) {
-            return !!this.rolePermissionsMatrix[activeRole][menu].view;
-          }
+
           const map = {
             master_data: ['Admin', 'Petugas Gudang', 'Laboran'],
             inv_alat: ['Admin', 'Petugas Gudang', 'Laboran', 'Kepala Laboratorium'],
@@ -138,27 +144,43 @@ export function createAdminModule() {
             audit: ['Admin', 'Kepala Laboratorium'],
             settings: ['Admin']
           };
-          return (map[menu] || []).includes(activeRole);
+
+          return userRoles.some(role => {
+            if (this.rolePermissionsMatrix?.[role]?.[menu]) {
+              return !!this.rolePermissionsMatrix[role][menu].view;
+            }
+            return (map[menu] || []).includes(role);
+          });
         },
 
     canEdit(menu) {
-          const activeRole = this.session?.active_role || '';
+          const userRoles = this.getUserRoles();
+          if (userRoles.length === 0) return false;
           if (this.isSuperAdmin()) return true;
-          if (this.rolePermissionsMatrix?.[activeRole]?.[menu]) {
-            return !!this.rolePermissionsMatrix[activeRole][menu].edit;
-          }
-          if (menu === 'gudang') return ['Petugas Gudang', 'Admin'].includes(activeRole);
-          if (['inv_alat','alat_rusak','inv_bahan','inv_kimia','master_data'].includes(menu)) return ['Laboran', 'Admin', 'Petugas Gudang'].includes(activeRole);
-          return true;
+
+          return userRoles.some(role => {
+            if (this.rolePermissionsMatrix?.[role]?.[menu]) {
+              return !!this.rolePermissionsMatrix[role][menu].edit;
+            }
+            if (menu === 'gudang') return ['Petugas Gudang', 'Admin'].includes(role);
+            if (['inv_alat','alat_rusak','inv_bahan','inv_kimia','master_data'].includes(menu)) {
+              return ['Laboran', 'Admin', 'Petugas Gudang'].includes(role);
+            }
+            return false;
+          });
         },
 
     canDelete(menu) {
-          const activeRole = this.session?.active_role || '';
+          const userRoles = this.getUserRoles();
+          if (userRoles.length === 0) return false;
           if (this.isSuperAdmin()) return true;
-          if (this.rolePermissionsMatrix?.[activeRole]?.[menu]) {
-            return !!this.rolePermissionsMatrix[activeRole][menu].delete;
-          }
-          return ['Admin', 'Laboran', 'Petugas Gudang'].includes(activeRole);
+
+          return userRoles.some(role => {
+            if (this.rolePermissionsMatrix?.[role]?.[menu]) {
+              return !!this.rolePermissionsMatrix[role][menu].delete;
+            }
+            return ['Admin', 'Laboran', 'Petugas Gudang'].includes(role);
+          });
         },
 
     async loadAuditLogs() {
