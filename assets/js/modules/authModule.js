@@ -79,19 +79,18 @@ export function createAuthModule() {
       }, 5 * 60 * 1000);
     },
 
-    // SINKRONISASI DUA ARAH KONTEKS LOKASI AKTIF (active_lab_id)
+    // SINKRONISASI OTOMATIS SELURUH LOKASI PENUGASAN PENGGUNA
     syncActiveLabContext() {
       if (!this.session) return;
-      if (!this.session.active_lab_id) {
-        this.session.active_lab_id = 'ALL';
-      }
-      this.invLocationFilter = this.session.active_lab_id;
-      this.damagedLocationFilter = this.session.active_lab_id;
+      this.session.active_lab_id = 'ALL';
+      this.invLocationFilter = 'ALL';
+      this.damagedLocationFilter = 'ALL';
 
-      if (this.session.active_lab_id !== 'ALL' && this.session.active_lab_id !== 'GUDANG') {
-        if (!this.loanForm.lab_id) this.loanForm.lab_id = this.session.active_lab_id;
-        if (!this.usageForm.lab_id) this.usageForm.lab_id = this.session.active_lab_id;
-        if (!this.bookingForm.lab_id) this.bookingForm.lab_id = this.session.active_lab_id;
+      const labs = (this.session.accessible_labs || []).filter(l => l.lab_id !== 'GUDANG');
+      if (labs.length === 1) {
+        if (!this.loanForm.lab_id) this.loanForm.lab_id = labs[0].lab_id;
+        if (!this.usageForm.lab_id) this.usageForm.lab_id = labs[0].lab_id;
+        if (!this.bookingForm.lab_id) this.bookingForm.lab_id = labs[0].lab_id;
       }
     },
 
