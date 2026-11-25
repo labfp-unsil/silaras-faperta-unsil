@@ -1,22 +1,16 @@
 export function createAuthModule() {
   return {
     session: null,
-
     sessionCheckTimer: null,
-
     isHandlingSessionExpiry: false,
-
     authModal: { open: false, mode: 'login' },
-
+	showLoginPassword: false,
     loginForm: { email: '', password: '' },
-
     forgotForm: { step: 1, email: '', otp: '', new_password: '', confirm_password: '' },
-
     regForm: { full_name: '', nim_nip: '', unit_prodi: '', phone: '', email: '', password: '' },
-
     profileForm: { full_name: '', nim_nip: '', unit_prodi: '', phone: '' },
-
-    isSessionExpiredError(msg) {
+	
+	isSessionExpiredError(msg) {
           const text = String(msg || '').toLowerCase();
           return (
             text.includes('session_expired') ||
@@ -99,10 +93,10 @@ export function createAuthModule() {
           }
         },
 
-    openAuthModal(mode) {
-          this.switchAuthMode(mode);
-          this.authModal.open = true;
-        },
+    switchAuthMode(mode) {
+      this.showLoginPassword = false;
+      this.authModal.mode = mode;
+    },
 
     switchAuthMode(mode) {
           this.authModal.mode = mode;
@@ -118,6 +112,33 @@ export function createAuthModule() {
             };
           }
         },
+		
+	triggerGoogleLogin() {
+      if (!window.google?.accounts?.id) {
+        this.showToast('Layanan Google Sign-In belum termuat. Silakan muat ulang halaman.', 'error');
+        return;
+      }
+      window.google.accounts.id.initialize({
+        client_id: APP_CONFIG.GOOGLE_CLIENT_ID,
+        callback: async (response) => {
+          try {
+            const res = await this.runGas('apiGoogleLogin', response.credential);
+            if (!res.success) {
+              this.showToast(res.message || 'Gagal masuk menggunakan akun Google.', 'error');
+              return;
+            }
+            this.session = res.session;
+            localStorage.setItem('silaras_token', res.session.token);
+            this.authModal.open = false;
+            this.showToast(res.message || 'Berhasil masuk dengan akun Google!');
+            await this.loadDashboard();
+          } catch (e) {
+            this.showToast(e.message, 'error');
+          }
+        }
+      });
+      window.google.accounts.id.prompt();
+    },
 
     async submitRequestResetOtp() {
           try {
