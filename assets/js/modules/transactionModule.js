@@ -65,16 +65,30 @@ export function createTransactionModule() {
           return this.sortByItemName(list, 'asc');
         },
 
-    confirmPickItem(c) {
+    confirmPickItem(c, ev) {
+          const now = Date.now();
+          if (this._lastPickKey === (c.inv_id || c.item_id) && (now - (this._lastPickTime || 0)) < 350) {
+            return;
+          }
+          this._lastPickKey = c.inv_id || c.item_id;
+          this._lastPickTime = now;
+
           const maxAvail = Number(c.qty_available || 0);
           if (maxAvail <= 0) {
             this.showToast('Stok tersedia 0, tidak dapat dipilih.', 'error');
             return;
           }
 
+          // Baca langsung dari elemen <input> di sebelah tombol jika ada agar nilai selalu akurat
+          let domQty = c.pickQty;
+          if (ev && ev.currentTarget && ev.currentTarget.parentElement) {
+            const inp = ev.currentTarget.parentElement.querySelector('input[type="number"]');
+            if (inp && inp.value !== '') domQty = inp.value;
+          }
+
           const t = this.catalogPickerModal.target;
           const isEquipment = this.catalogPickerModal.category === 'Alat' || c.category === 'Alat' || t === 'loan' || t === 'booking_eq';
-          const rawQty = Number(c.pickQty || 1);
+          const rawQty = Number(domQty || 1);
           const qty = isEquipment ? Math.round(rawQty) : rawQty;
 
           if (qty <= 0 || qty > maxAvail) {
@@ -156,6 +170,10 @@ export function createTransactionModule() {
 
           if (ok) {
             c.pickQty = 1;
+            if (ev && ev.currentTarget && ev.currentTarget.parentElement) {
+              const inp = ev.currentTarget.parentElement.querySelector('input[type="number"]');
+              if (inp) inp.value = '1';
+            }
             this.showToast(c.item_name + ' ditambahkan');
           }
         },
