@@ -133,14 +133,16 @@ Alpine.data('silarasApp', () => ({
                 'inv_materials',
                 'inv_chemicals',
                 'equipment_loans',
+                'equipment_loan_items',
                 'room_bookings',
                 'material_usages',
+                'material_usage_items',
                 'notifications'
               ];
               let ch = sb.channel('silaras-live-sync');
               for (const tbl of watchTables) {
                 ch = ch.on('postgres_changes', { event: '*', schema: 'public', table: tbl }, () => {
-                  this.scheduleSilentSync();
+                  this.scheduleSilentSync(80);
                 });
               }
               this.realtimeChannel = ch.subscribe();
@@ -151,23 +153,23 @@ Alpine.data('silarasApp', () => ({
 
           // 2. Sinkronisasi otomatis saat jendela/tab browser kembali aktif
           window.addEventListener('focus', () => {
-            if (this.session?.token) this.scheduleSilentSync(150);
+            if (this.session?.token) this.scheduleSilentSync(50);
           });
           document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' && this.session?.token) {
-              this.scheduleSilentSync(150);
+              this.scheduleSilentSync(50);
             }
           });
 
-          // 3. Fallback sinkronisasi berkala setiap 12 detik jika WebSocket diblokir jaringan
+          // 3. Fallback sinkronisasi berkala setiap 5 detik jika WebSocket diblokir jaringan
           setInterval(() => {
             if (document.visibilityState === 'visible' && this.session?.token && !this.loading) {
               this.syncActiveViewSilently();
             }
-          }, 12000);
+          }, 5000);
         },
 
-  scheduleSilentSync(delayMs = 350) {
+  scheduleSilentSync(delayMs = 80) {
           if (this.realtimeDebounceTimer) clearTimeout(this.realtimeDebounceTimer);
           this.realtimeDebounceTimer = setTimeout(() => {
             this.syncActiveViewSilently();
@@ -175,10 +177,15 @@ Alpine.data('silarasApp', () => ({
         },
 
   async syncActiveViewSilently() {
-          if (!this.session?.token || this.realtimeSyncInFlight || this.loading) return;
+          if (!this.session?.token || this.realtimeSyncInFlight) return;
           this.realtimeSyncInFlight = true;
           try {
             const menu = this.activeMenu;
+            // Jika berada di menu antrean transaksi/dashboard, tarik apiGetDashboardData dulu agar tabel langsung ter-update seketika
+            if (['pinjam_alat', 'guna_bahan', 'booking_ruang', 'verifikasi', 'dashboard'].includes(menu)) {
+              const dashRes = await this.runGasSilent('apiGetDashboardData', this.session.token);
+              if (dashRes) this.dashData = this.normalizeDashboardPayload(dashRes);
+            }
             await this.loadWorkspaceBundle(true);
             if (['inv_alat', 'inv_bahan', 'inv_kimia'].includes(menu)) {
               const cat = this.currentInvCategory();
