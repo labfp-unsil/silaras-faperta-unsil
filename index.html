@@ -1793,7 +1793,7 @@
                   <thead class="bg-slate-100">
                     <tr>
                       <th class="px-3 py-2">ID</th>
-                      <th class="px-3 py-2">Peminjam & Lab</th>
+                      <th class="px-3 py-2">Peminjam, Lab & Tujuan</th>
                       <th class="px-3 py-2">Item Alat</th>
                       <th class="px-3 py-2">Status</th>
                       <th class="px-3 py-2">Aksi</th>
@@ -1803,9 +1803,18 @@
                     <template x-for="l in filteredApprovalList(dashData.loans)" :key="l.loan_id">
                       <tr>
                         <td class="px-3 py-2 font-mono font-bold" x-text="l.loan_id"></td>
-                        <td class="px-3 py-2"><b x-text="l.borrower_name"></b><br><span x-text="l.lab_name"></span></td>
                         <td class="px-3 py-2 space-y-0.5">
-                          <template x-for="it in l.items" :key="it.loan_item_id">
+                          <div class="font-bold text-slate-900" x-text="l.borrower_name"></div>
+                          <div class="text-slate-600" x-text="l.lab_name"></div>
+                          <div class="text-[11px] text-emerald-800 font-medium" x-show="l.purpose">
+                            <span class="font-bold">Tujuan:</span> <span x-text="l.purpose"></span>
+                          </div>
+                          <div class="text-[11px] text-slate-400" x-show="l.loan_date">
+                            <span x-text="normalizeYMD(l.loan_date) + (l.due_date ? ' s.d. ' + normalizeYMD(l.due_date) : '')"></span>
+                          </div>
+                        </td>
+                        <td class="px-3 py-2 space-y-0.5">
+                          <template x-for="it in (l.items || []).filter((v, i, arr) => arr.findIndex(x => x.loan_item_id === v.loan_item_id) === i)" :key="it.loan_item_id">
                             <div x-text="it.item_name + ' (' + it.qty_requested + ') [' + (it.return_condition || it.initial_condition || 'Baik') + ']'"></div>
                           </template>
                         </td>
