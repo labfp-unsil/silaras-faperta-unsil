@@ -1883,50 +1883,9 @@
                         </td>
                       </tr>
                     </template>
-                    <tr x-show="filteredApprovalList(dashData.loans).length === 0">
-                      <td colspan="6" class="px-3 py-4 text-center text-slate-400">Tidak ada antrean peminjaman alat pada lokasi aktif ini.</td>
-                    </tr>
-                  </tbody>
-
-                          <!-- Aksi Tolak (Laboran / Ka. Lab) -->
-                          <button type="button" x-show="['pending_verification','verified_laboran'].includes(l.status) && (hasRole('Laboran') || canApproveKalab())"
-                                  @click="processStep('loan', l.loan_id, 'reject')"
-                                  class="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold">
-                            Tolak
-                          </button>
-
-                          <!-- Aksi User Peminjam: Batalkan (saat diajukan / diverifikasi laboran) -->
-                          <button type="button" x-show="['pending_verification','verified_laboran'].includes(l.status) && l.user_id === session?.user_id"
-                                  @click="cancelTransaction('loan', l.loan_id)"
-                                  class="px-2.5 py-1 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-bold">
-                            Batalkan
-                          </button>
-
-                          <!-- Aksi User Peminjam: Pengembalian (setelah disetujui Ka. Lab / status borrowed) -->
-                          <button type="button" x-show="['borrowed','approved','active_borrowed','returned_partial'].includes(l.status) && l.user_id === session?.user_id"
-                                  @click="userRequestReturn(l.loan_id)"
-                                  class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold">
-                            <i class="fa-solid fa-rotate-left mr-1"></i>Pengembalian
-                          </button>
-
-                          <!-- Aksi Laboran & Kepala Lab: Diterima (setelah user klik Pengembalian) -->
-                          <button type="button" x-show="l.status === 'return_requested' && (hasRole('Laboran') || canApproveKalab())"
-                                  @click="openReturnAssessmentModal(l)"
-                                  class="px-2.5 py-1 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg font-bold">
-                            <i class="fa-solid fa-clipboard-check mr-1"></i>Diterima
-                          </button>
-
-                          <!-- Khusus Super Admin: Hapus Data -->
-                          <button type="button" x-show="isSuperAdmin()"
-                                  @click="deleteTransaction('loan', l.loan_id)"
-                                  class="px-2.5 py-1 bg-rose-700 hover:bg-rose-800 text-white rounded-lg font-bold">
-                            <i class="fa-solid fa-trash mr-1"></i>Hapus Data
-                          </button>
-                        </td>
-                      </tr>
                     </template>
                     <tr x-show="filteredApprovalList(dashData.loans).length === 0">
-                      <td colspan="6" class="px-3 py-4 text-center text-slate-400">Tidak ada antrean peminjaman peralatan pada lokasi aktif ini.</td>
+                      <td colspan="6" class="px-3 py-4 text-center text-slate-400">Tidak ada antrean peminjaman alat pada lokasi aktif ini.</td>
                     </tr>
                   </tbody>
                 </table>
