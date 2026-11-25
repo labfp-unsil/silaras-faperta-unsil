@@ -1997,15 +1997,90 @@
             <div class="p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl space-y-3">
               <p class="text-xs font-bold text-emerald-950">Kebutuhan Terintegrasi (Opsional):</p>
               <div class="flex flex-wrap gap-2">
-                <button type="button" @click="openCatalogPickerModal('Alat', bookingForm.lab_id, 'booking_eq')" class="px-3 py-1.5 rounded-xl bg-white border border-emerald-700 text-emerald-900 text-xs font-bold">
+                <button type="button" @click="openCatalogPickerModal('Alat', bookingForm.lab_id, 'booking_eq')" class="px-3 py-1.5 rounded-xl bg-white border border-emerald-700 text-emerald-900 text-xs font-bold hover:bg-emerald-100/70 transition">
                   + Tambah Alat (<span x-text="bookingForm.equipment_items.length"></span>)
                 </button>
-                <button x-show="bookingForm.activity_type === 'Praktikum'" type="button" @click="openCatalogPickerModal('Bahan', bookingForm.lab_id, 'booking_mat')" class="px-3 py-1.5 rounded-xl bg-white border border-emerald-700 text-emerald-900 text-xs font-bold">
+                <button x-show="bookingForm.activity_type === 'Praktikum'" type="button" @click="openCatalogPickerModal('Bahan', bookingForm.lab_id, 'booking_mat')" class="px-3 py-1.5 rounded-xl bg-white border border-emerald-700 text-emerald-900 text-xs font-bold hover:bg-emerald-100/70 transition">
                   + Tambah Bahan (<span x-text="bookingForm.material_items.length"></span>)
                 </button>
-                <button x-show="bookingForm.activity_type === 'Praktikum'" type="button" @click="openCatalogPickerModal('Bahan Kimia', bookingForm.lab_id, 'booking_chem')" class="px-3 py-1.5 rounded-xl bg-white border border-emerald-700 text-emerald-900 text-xs font-bold">
+                <button x-show="bookingForm.activity_type === 'Praktikum'" type="button" @click="openCatalogPickerModal('Bahan Kimia', bookingForm.lab_id, 'booking_chem')" class="px-3 py-1.5 rounded-xl bg-white border border-emerald-700 text-emerald-900 text-xs font-bold hover:bg-emerald-100/70 transition">
                   + Tambah Bahan Kimia (<span x-text="bookingForm.chemical_items.length"></span>)
                 </button>
+              </div>
+
+              <!-- Rincian Alat yang Ditambahkan -->
+              <div x-show="bookingForm.equipment_items.length > 0" class="pt-1 space-y-1.5">
+                <p class="text-[11px] font-bold text-emerald-900 uppercase tracking-wide">
+                  <i class="fa-solid fa-microscope mr-1"></i>Daftar Peralatan Dipilih:
+                </p>
+                <div class="space-y-1.5">
+                  <template x-for="(it, idx) in bookingForm.equipment_items" :key="it.eq_inv_id || idx">
+                    <div class="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-xl border border-emerald-200 text-xs">
+                      <div class="min-w-0">
+                        <span class="font-bold text-slate-900" x-text="it.item_name"></span>
+                        <span class="text-[10px] font-mono text-slate-400 ml-1" x-text="'(' + (it.item_id || '-') + ')'"></span>
+                      </div>
+                      <div class="flex items-center gap-2 shrink-0">
+                        <span class="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 font-bold"
+                              x-text="it.qty + ' ' + (it.unit || 'Unit')"></span>
+                        <button type="button" @click="bookingForm.equipment_items.splice(idx, 1)"
+                                class="text-rose-600 hover:text-rose-800 p-1" title="Hapus Alat">
+                          <i class="fa-solid fa-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <!-- Rincian Bahan yang Ditambahkan -->
+              <div x-show="bookingForm.activity_type === 'Praktikum' && bookingForm.material_items.length > 0" class="pt-1 space-y-1.5">
+                <p class="text-[11px] font-bold text-teal-900 uppercase tracking-wide">
+                  <i class="fa-solid fa-seedling mr-1"></i>Daftar Bahan Dipilih:
+                </p>
+                <div class="space-y-1.5">
+                  <template x-for="(it, idx) in bookingForm.material_items" :key="it.inv_id || idx">
+                    <div class="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-xl border border-teal-200 text-xs">
+                      <div class="min-w-0">
+                        <span class="font-bold text-slate-900" x-text="it.item_name"></span>
+                        <span class="text-[10px] font-mono text-slate-400 ml-1" x-text="'(' + (it.item_id || '-') + ')'"></span>
+                      </div>
+                      <div class="flex items-center gap-2 shrink-0">
+                        <span class="px-2 py-0.5 rounded-lg bg-teal-100 text-teal-900 font-bold"
+                              x-text="it.qty + ' ' + (it.unit || 'Satuan')"></span>
+                        <button type="button" @click="bookingForm.material_items.splice(idx, 1)"
+                                class="text-rose-600 hover:text-rose-800 p-1" title="Hapus Bahan">
+                          <i class="fa-solid fa-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <!-- Rincian Bahan Kimia yang Ditambahkan -->
+              <div x-show="bookingForm.activity_type === 'Praktikum' && bookingForm.chemical_items.length > 0" class="pt-1 space-y-1.5">
+                <p class="text-[11px] font-bold text-amber-900 uppercase tracking-wide">
+                  <i class="fa-solid fa-flask mr-1"></i>Daftar Bahan Kimia Dipilih:
+                </p>
+                <div class="space-y-1.5">
+                  <template x-for="(it, idx) in bookingForm.chemical_items" :key="it.inv_id || idx">
+                    <div class="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-xl border border-amber-200 text-xs">
+                      <div class="min-w-0">
+                        <span class="font-bold text-slate-900" x-text="it.item_name"></span>
+                        <span class="text-[10px] font-mono text-slate-400 ml-1" x-text="'(' + (it.item_id || '-') + ')'"></span>
+                      </div>
+                      <div class="flex items-center gap-2 shrink-0">
+                        <span class="px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 font-bold"
+                              x-text="it.qty + ' ' + (it.unit || 'Satuan')"></span>
+                        <button type="button" @click="bookingForm.chemical_items.splice(idx, 1)"
+                                class="text-rose-600 hover:text-rose-800 p-1" title="Hapus Bahan Kimia">
+                          <i class="fa-solid fa-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </template>
+                </div>
               </div>
             </div>
 
