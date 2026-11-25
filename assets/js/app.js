@@ -420,6 +420,142 @@ Alpine.data('silarasApp', () => ({
           }
         },
 
+  dashboardChartSeries() {
+          const days = [];
+          const now = new Date();
+          const dayNames = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+          for (let i = 6; i >= 0; i--) {
+            const d = new Date(now);
+            d.setDate(now.getDate() - i);
+            const iso = d.toISOString().slice(0, 10);
+            days.push({
+              date: iso,
+              label: `${dayNames[d.getDay()]} ${iso.slice(8, 10)}/${iso.slice(5, 7)}`,
+              loans: 0,
+              bookings: 0,
+              usages: 0,
+              total: 0
+            });
+          }
+          const map = Object.fromEntries(days.map((x) => [x.date, x]));
+          (this.dashData?.loans || []).forEach((l) => {
+            const key = String(l.created_at || l.loan_date || '').slice(0, 10);
+            if (map[key]) { map[key].loans++; map[key].total++; }
+          });
+          (this.dashData?.bookings || []).forEach((b) => {
+            const key = String(b.created_at || b.booking_date || '').slice(0, 10);
+            if (map[key]) { map[key].bookings++; map[key].total++; }
+          });
+          (this.dashData?.usages || []).forEach((u) => {
+            const key = String(u.created_at || u.usage_date || '').slice(0, 10);
+            if (map[key]) { map[key].usages++; map[key].total++; }
+          });
+          const maxVal = Math.max(1, ...days.map((d) => d.total));
+          return days.map((d) => ({
+            ...d,
+            loanPct: Math.round((d.loans / maxVal) * 100),
+            bookingPct: Math.round((d.bookings / maxVal) * 100),
+            usagePct: Math.round((d.usages / maxVal) * 100)
+          }));
+        },
+
+  equipmentHealthSummary() {
+          const list = Array.isArray(this.invCache?.Alat) ? this.invCache.Alat : [];
+          let available = 0;
+          let borrowed = 0;
+          let damaged = 0;
+          list.forEach((eq) => {
+            available += Number(eq.qty_available || 0);
+            borrowed += Number(eq.qty_borrowed || 0);
+            damaged += Number(eq.qty_damaged || 0);
+          });
+          const total = Math.max(1, available + borrowed + damaged);
+          const realTotal = available + borrowed + damaged;
+          return {
+            available,
+            borrowed,
+            damaged,
+            total: realTotal,
+            availPct: Math.round((available / total) * 100),
+            borrowPct: Math.round((borrowed / total) * 100),
+            damagePct: Math.round((damaged / total) * 100)
+          };
+        },
+
+  upcomingRoomSchedules() {
+          const today = new Date().toISOString().slice(0, 10);
+          return (this.dashData?.bookings || [])
+            .filter((b) => !['rejected', 'cancelled'].includes(String(b.status || '').toLowerCase()))
+            .filter((b) => String(b.booking_date || '').slice(0, 10) >= today)
+            .sort((a, b) => {
+              const da = `${a.booking_date || ''} ${a.start_time || ''}`;
+              const db = `${b.booking_date || ''} ${b.start_time || ''}`;
+              return da.localeCompare(db);
+            })
+            .slice(0, 6);
+        },
+
+  activeBorrowedLoans() {
+          const today = new Date().toISOString().slice(0, 10);
+          return (this.dashData?.loans || [])
+            .filter((l) => ['borrowed', 'return_requested'].includes(String(l.status || '').toLowerCase()))
+            .map((l) => {
+              const retDate = String(l.return_date || '').slice(0, 10);
+              const itemsText = Array.isArray(l.items) && l.items.length > 0
+                ? l.items.map((it) => `${it.item_name} (${it.qty_requested})`).join(', ')
+                : '-';
+              return {
+                ...l,
+                itemsSummary: itemsText,
+                isOverdue: Boolean(retDate && retDate < today)
+              };
+            })
+            .slice(0, 6);
+        },
+
+  lowStockAlerts() {
+          const alerts = [];
+          const today = new Date();
+          const in30Days = new Date();
+          in30Days.setDate(today.getDate() + 30);
+          const limitIso = in30Days.toISOString().slice(0, 10);
+
+          const scan = (arr, category, menuKey) => {
+            (arr || []).forEach((item) => {
+              const avail = Number(item.qty_available || 0);
+              const min = Number(item.min_stock || 0);
+              const exp = String(item.expired_date || '').slice(0, 10);
+              if (min > 0 && avail <= min) {
+                alerts.push({
+                  id: item.mat_inv_id || item.chem_inv_id || item.eq_inv_id,
+                  name: item.item_name,
+                  lab: item.location_name || item.location_id || '-',
+                  badge: `Sisa ${avail} ${item.unit || ''}`.trim(),
+                  reason: `Stok menipis (min: ${min})`,
+                  severity: avail === 0 ? 'red' : 'amber',
+                  menu: menuKey,
+                  category
+                });
+              } else if (exp && exp <= limitIso) {
+                alerts.push({
+                  id: item.chem_inv_id || item.mat_inv_id,
+                  name: item.item_name,
+                  lab: item.location_name || item.location_id || '-',
+                  badge: `Exp: ${exp}`,
+                  reason: 'Mendekati / lewat kedaluwarsa',
+                  severity: 'red',
+                  menu: menuKey,
+                  category
+                });
+              }
+            });
+          };
+
+          scan(this.invCache?.Bahan, 'Bahan', 'inv_bahan');
+          scan(this.invCache?.['Bahan Kimia'], 'Bahan Kimia', 'inv_kimia');
+          return alerts.slice(0, 6);
+        },
+
   async loadDashboard(silent = false) {
           try {
             const runner = silent ? this.runGasSilent.bind(this) : this.runGas.bind(this);
