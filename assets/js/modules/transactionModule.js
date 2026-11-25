@@ -250,21 +250,105 @@ export function createTransactionModule() {
           } catch (e) { this.showToast(e.message, 'error'); }
         },
 
+    editLoanModal: { open: false, loanId: '', labId: '', items: [], labEquipments: [] },
+
+    async cancelTransaction(type, id) {
+          const reason = await this.askPrompt(
+            'Masukkan alasan pembatalan permohonan ini:',
+            '',
+            'Batalkan Permohonan',
+            'Tulis alasan pembatalan...'
+          );
+          if (reason === null) return;
+          try {
+            const res = await this.runGas('apiCancelTransaction', this.session.token, type, id, reason);
+            this.showToast(res.message || 'Permohonan berhasil dibatalkan');
+            await this.loadWorkspaceBundle(true);
+            await this.loadPublicHome();
+          } catch (e) {
+            this.showToast(e.message, 'error');
+          }
+        },
+
+    async deleteTransaction(type, id) {
+          const ok = await this.askConfirm(
+            `Hapus permanen data transaksi ${id}? Jika stok masih tertahan/dipinjam, stok akan otomatis dikembalikan ke inventaris.`,
+            'Hapus Data Transaksi (Super Admin)'
+          );
+          if (!ok) return;
+          try {
+            const res = await this.runGas('apiDeleteTransaction', this.session.token, type, id);
+            this.showToast(res.message || 'Data transaksi berhasil dihapus');
+            await this.loadWorkspaceBundle(true);
+            await this.loadPublicHome();
+          } catch (e) {
+            this.showToast(e.message, 'error');
+          }
+        },
+
+    openEditLoanItemsModal(loan) {
+          const labEqs = (this.invData?.inv_alat || this.publicData?.equipments || []).filter(
+            (e) => e.location_id === loan.lab_id
+          );
+          const clonedItems = (loan.items || []).map((it) => ({
+            loan_item_id: it.loan_item_id,
+            eq_inv_id: it.eq_inv_id,
+            item_id: it.item_id,
+            item_name: it.item_name,
+            qty_requested: Number(it.qty_requested || 1),
+            initial_condition: it.initial_condition || 'Baik',
+          }));
+          this.editLoanModal = {
+            open: true,
+            loanId: loan.loan_id,
+            labId: loan.lab_id,
+            items: clonedItems,
+            labEquipments: labEqs,
+          };
+        },
+
+    async saveEditedLoanItems() {
+          if (!this.editLoanModal.items || this.editLoanModal.items.length === 0) {
+            this.showToast('Minimal harus terdapat 1 item alat.', 'error');
+            return;
+          }
+          try {
+            const res = await this.runGas(
+              'apiUpdateEquipmentLoanItems',
+              this.session.token,
+              this.editLoanModal.loanId,
+              this.editLoanModal.items
+            );
+            this.showToast(res.message || 'Item peminjaman berhasil diperbarui');
+            this.editLoanModal.open = false;
+            await this.loadWorkspaceBundle(true);
+            await this.loadPublicHome();
+          } catch (e) {
+            this.showToast(e.message, 'error');
+          }
+        },
+
     async userRequestReturn(loanId) {
+          const ok = await this.askConfirm(
+            'Ajukan pengembalian alat untuk transaksi peminjaman ini sekarang?',
+            'Konfirmasi Pengembalian Alat'
+          );
+          if (!ok) return;
           try {
             const res = await this.runGas('apiUserRequestReturn', this.session.token, loanId);
-            this.showToast(res.message);
-            await this.loadDashboard();
+            this.showToast(res.message || 'Permintaan pengembalian alat berhasil dikirim');
+            await this.loadWorkspaceBundle(true);
           } catch (e) { this.showToast(e.message, 'error'); }
         },
 
     async openReturnAssessmentModal(loan) {
-          const item = loan.items[0];
-          if (!item) return;
+          const items = loan.items || [];
+          if (items.length === 0) return;
+          const summaryList = items.map((it) => `• ${it.item_name} (${it.qty_requested} unit)`).join('\n');
           const cond = await this.askPrompt(
-            `Penilaian Kondisi Pengembalian Alat:\n${item.item_name} (Pinjam: ${item.qty_requested})`,
+            `Konfirmasi Penerimaan & Kondisi Pengembalian Alat:\n${summaryList}`,
             'Baik',
-            'Penilaian Kondisi Alat',
+            'Penerimaan Pengembalian Alat',
             '',
             ['Baik', 'Rusak Ringan', 'Rusak Berat']
           );
@@ -272,11 +356,18 @@ export function createTransactionModule() {
           const notes = await this.askPrompt('Catatan kondisi / kerusakan (opsional):', '', 'Catatan Pengembalian', 'Tulis catatan kondisi...');
           if (notes === null) return;
           try {
-            const res = await this.runGas('apiProcessLoanReturnAssessment', this.session.token, loan.loan_id, [
-              { loan_item_id: item.loan_item_id, qty_returned: item.qty_requested, return_condition: cond, condition_notes: notes || '' }
-            ]);
-            this.showToast(res.message);
-            await this.loadDashboard();
+            const payloadItems = items.map((it) => ({
+              loan_item_id: it.loan_item_id,
+              eq_inv_id: it.eq_inv_id,
+              item_id: it.item_id,
+              qty_returned: it.qty_requested,
+              return_condition: cond,
+              condition_notes: notes || '',
+            }));
+            const res = await this.runGas('apiProcessLoanReturnAssessment', this.session.token, loan.loan_id, payloadItems);
+            this.showToast(res.message || 'Pengembalian alat diterima dan stok diperbarui');
+            await this.loadWorkspaceBundle(true);
+            await this.loadPublicHome();
           } catch (e) { this.showToast(e.message, 'error'); }
         }
   };
