@@ -174,21 +174,27 @@ export function createTransactionModule() {
               eq_inv_id: c.eq_inv_id || c.inv_id,
               item_id: c.item_id,
               item_name: c.item_name,
-              qty
+              qty,
+              max_qty: maxAvail,
+              unit: c.unit || 'Unit'
             });
           } else if (t === 'booking_mat') {
             ok = mergeOrPush(this.bookingForm.material_items, {
               inv_id: c.inv_id,
               item_id: c.item_id,
               item_name: c.item_name,
-              qty
+              qty,
+              max_qty: maxAvail,
+              unit: c.unit || 'Satuan'
             });
           } else if (t === 'booking_chem') {
             ok = mergeOrPush(this.bookingForm.chemical_items, {
               inv_id: c.inv_id,
               item_id: c.item_id,
               item_name: c.item_name,
-              qty
+              qty,
+              max_qty: maxAvail,
+              unit: c.unit || 'Satuan'
             });
           }
 
