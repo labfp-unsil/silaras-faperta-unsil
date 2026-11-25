@@ -125,18 +125,34 @@ export function createAuthModule() {
         client_id: CONFIG.GOOGLE_CLIENT_ID,
         callback: async (response) => {
           try {
-            const res = await this.runGas('apiGoogleLogin', response.credential);
+            const res = await this.runGas('apiLoginWithGoogle', response.credential);
             const sessionObj = (res && res.session) ? res.session : res;
             if (!sessionObj || !sessionObj.token) {
               throw new Error(res?.message || 'Gagal masuk menggunakan akun Google.');
             }
+            const needsCompletion = Boolean(
+              res?.needsProfileCompletion ||
+              sessionObj.needs_profile_completion ||
+              !sessionObj.nim_nip ||
+              !sessionObj.unit_prodi ||
+              !sessionObj.phone
+            );
+            sessionObj.needs_profile_completion = needsCompletion;
+
             this.session = sessionObj;
             this.syncActiveLabContext();
             localStorage.setItem('SILARAS_SESSION', JSON.stringify(this.session));
             this.authModal.open = false;
-            this.profileForm.full_name = this.session.full_name;
-            this.bookingForm.pic_name = this.session.full_name;
-            this.bookingForm.unit_prodi = this.session.unit_prodi;
+
+            this.profileForm = {
+              full_name: this.session.full_name || '',
+              nim_nip: this.session.nim_nip || '',
+              unit_prodi: this.session.unit_prodi || '',
+              phone: this.session.phone || ''
+            };
+            this.bookingForm.pic_name = this.session.full_name || '';
+            this.bookingForm.unit_prodi = this.session.unit_prodi || '';
+
             this.showToast('Selamat datang di SILARAS, ' + this.session.full_name);
             await this.loadWorkspaceBundle(false);
           } catch (e) {
@@ -234,11 +250,21 @@ export function createAuthModule() {
     },
 
     async submitCompleteProfile() {
+      if (!this.profileForm.nim_nip?.trim() || !this.profileForm.unit_prodi?.trim() || !this.profileForm.phone?.trim()) {
+        this.showToast('NIM/NIP, Program Studi/Unit Kerja, dan Nomor WhatsApp wajib diisi.', 'error');
+        return;
+      }
       try {
         const res = await this.runGas('apiCompleteProfile', this.session.token, this.profileForm);
+        const updated = res?.session || {};
         this.session.needs_profile_completion = false;
-        this.session.full_name = res.user.full_name;
-        this.session.unit_prodi = res.user.unit_prodi;
+        this.session.full_name = updated.full_name || this.profileForm.full_name.trim();
+        this.session.nim_nip = updated.nim_nip || this.profileForm.nim_nip.trim();
+        this.session.unit_prodi = updated.unit_prodi || this.profileForm.unit_prodi.trim();
+        this.session.phone = updated.phone || this.profileForm.phone.trim();
+
+        this.bookingForm.pic_name = this.session.full_name;
+        this.bookingForm.unit_prodi = this.session.unit_prodi;
         localStorage.setItem('SILARAS_SESSION', JSON.stringify(this.session));
         this.showToast('Profil dasar berhasil disimpan');
       } catch (e) {
