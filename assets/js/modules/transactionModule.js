@@ -21,6 +21,15 @@ export function createTransactionModule() {
 
     bookingForm: { lab_id: '', pic_name: '', unit_prodi: '', activity_type: 'Praktikum', activity_title: '', booking_date: new Date().toISOString().slice(0,10), start_time: '08:00', end_time: '10:00', participant_count: 20, equipment_items: [], material_items: [], chemical_items: [] },
 
+    setBookingTimePart(field, part, value) {
+          const current = String(this.bookingForm[field] || '08:00');
+          const [curH = '08', curM = '00'] = current.split(':');
+          const pad2 = (v) => String(v ?? '00').padStart(2, '0');
+          const nextH = part === 'hour' ? pad2(value) : pad2(curH);
+          const nextM = part === 'minute' ? pad2(value) : pad2(curM);
+          this.bookingForm[field] = `${nextH}:${nextM}`;
+        },
+
     catalogPickerModal: { open: false, category: 'Alat', target: '', search: '', items: [] },
 
     filteredApprovalList(list) {
