@@ -920,10 +920,11 @@
                   </div>
                   <div class="pt-2 border-t border-slate-100 text-xs">
                     <template x-if="currentInvCategory() === 'Alat'">
-                      <div class="flex justify-between font-semibold">
+                      <div class="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[11px] font-semibold">
                         <span class="text-emerald-700">Tersedia: <b x-text="row.qty_available"></b></span>
+                        <span class="text-blue-600">Verifikasi: <b x-text="row.qty_verifying || 0"></b></span>
                         <span class="text-amber-600">Dipinjam: <b x-text="row.qty_borrowed"></b></span>
-                        <span class="text-slate-600">Total: <b x-text="row.qty_total"></b></span>
+                        <span class="text-slate-700">Total: <b x-text="Number(row.qty_available || 0) + Number(row.qty_verifying || 0) + Number(row.qty_borrowed || 0)"></b></span>
                       </div>
                     </template>
                     <template x-if="currentInvCategory() !== 'Alat'">
@@ -977,7 +978,12 @@
                     </td>
                     <td class="px-4 py-3 text-xs">
                       <template x-if="currentInvCategory() === 'Alat'">
-                        <span>Tersedia: <b class="text-emerald-700" x-text="row.qty_available"></b> | Dipinjam: <b class="text-amber-600" x-text="row.qty_borrowed"></b> | Total: <b x-text="row.qty_total"></b></span>
+                        <span>
+                          Tersedia: <b class="text-emerald-700" x-text="row.qty_available"></b> |
+                          Verifikasi: <b class="text-blue-600" x-text="row.qty_verifying || 0"></b> |
+                          Dipinjam: <b class="text-amber-600" x-text="row.qty_borrowed"></b> |
+                          Total: <b x-text="Number(row.qty_available || 0) + Number(row.qty_verifying || 0) + Number(row.qty_borrowed || 0)"></b>
+                        </span>
                       </template>
                       <template x-if="currentInvCategory() !== 'Alat'">
                         <span class="font-bold text-emerald-800" x-text="row.qty_available + ' ' + row.unit"></span>
