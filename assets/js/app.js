@@ -217,9 +217,15 @@ Alpine.data('silarasApp', () => ({
             if (Array.isArray(res.master_items)) {
               this.masterItemsList = res.master_items;
             }
+            if (res.role_permissions) {
+              this.initPermissionMatrix(res.role_permissions);
+            }
             if (res.admin) {
               this.adminData = res.admin;
-              this.initPermissionMatrix(res.admin.role_permissions || null);
+              this.initPermissionMatrix(res.admin.role_permissions || res.role_permissions || null);
+            }
+            if (res.session && Array.isArray(res.session.accessible_labs) && this.session) {
+              this.session.accessible_labs = res.session.accessible_labs;
             }
             this.bundleLoaded = true;
           } catch (e) {
