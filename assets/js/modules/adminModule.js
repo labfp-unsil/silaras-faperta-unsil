@@ -130,10 +130,13 @@ export function createAdminModule() {
           if (userRoles.length === 0) return false;
           if (this.isSuperAdmin()) return true;
 
+          if (menu === 'alat_rusak' && !this.isSuperAdmin() && (userRoles.includes('User') || userRoles.includes('Petugas Gudang'))) {
+            return false;
+          }
           const map = {
             master_data: ['Admin', 'Petugas Gudang', 'Laboran'],
             inv_alat: ['Admin', 'Petugas Gudang', 'Laboran', 'Kepala Laboratorium', 'User'],
-            alat_rusak: ['Admin', 'Petugas Gudang', 'Laboran', 'Kepala Laboratorium'],
+            alat_rusak: ['Admin', 'Laboran', 'Kepala Laboratorium'],
             inv_bahan: ['Admin', 'Petugas Gudang', 'Laboran', 'Kepala Laboratorium', 'User'],
             inv_kimia: ['Admin', 'Petugas Gudang', 'Laboran', 'Kepala Laboratorium', 'User'],
             gudang: ['Admin', 'Petugas Gudang', 'Laboran'],
