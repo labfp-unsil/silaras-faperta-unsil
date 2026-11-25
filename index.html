@@ -2713,11 +2713,12 @@
                      :step="(catalogPickerModal.category === 'Alat' || c.category === 'Alat') ? 1 : 'any'"
                      :min="(catalogPickerModal.category === 'Alat' || c.category === 'Alat') ? 1 : 0.01"
                      :max="c.qty_available"
-                     x-model.number="c.pickQty"
-                     @change="if (catalogPickerModal.category === 'Alat' || c.category === 'Alat') c.pickQty = Math.max(1, Math.round(Number(c.pickQty || 1)))"
+                     :value="c.pickQty"
+                     @input="c.pickQty = $event.target.value"
+                     @change="if (catalogPickerModal.category === 'Alat' || c.category === 'Alat') c.pickQty = Math.max(1, Math.round(Number($event.target.value || 1)))"
                      :disabled="Number(c.qty_available || 0) <= 0"
                      class="w-16 px-2 py-1 border border-slate-300 rounded-lg text-xs text-center disabled:bg-slate-100" />
-              <button type="button" @click="confirmPickItem(c)"
+              <button type="button" @click.stop.prevent="confirmPickItem(c, $event)"
                       :disabled="Number(c.qty_available || 0) <= 0"
                       class="px-2.5 py-1.5 rounded-lg bg-silaras-dark text-white text-xs font-bold hover:bg-emerald-900 disabled:bg-slate-300 disabled:cursor-not-allowed">
                 Tambahkan
