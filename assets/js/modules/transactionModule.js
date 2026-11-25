@@ -385,11 +385,16 @@ export function createTransactionModule() {
           const clonedItems = uniqueItems.map((it) => {
             const matchedEq = labEqs.find((e) => e.eq_inv_id === it.eq_inv_id) ||
                               labEqs.find((e) => e.item_id === it.item_id);
+            const displayName = matchedEq
+              ? `${matchedEq.item_name} (Sisa: ${matchedEq.qty_available})`
+              : `${it.item_name}`;
             return {
               loan_item_id: it.loan_item_id,
               eq_inv_id: matchedEq ? matchedEq.eq_inv_id : it.eq_inv_id,
               item_id: it.item_id,
               item_name: matchedEq ? matchedEq.item_name : it.item_name,
+              search_text: displayName,
+              dropdown_open: false,
               qty_requested: Number(it.qty_requested || 1),
               initial_condition: ['Baik', 'Rusak Ringan', 'Rusak Berat'].includes(it.initial_condition)
                 ? it.initial_condition
@@ -403,6 +408,18 @@ export function createTransactionModule() {
             items: clonedItems,
             labEquipments: labEqs,
           };
+        },
+
+    filterEditModalEquipments(query) {
+          const list = Array.isArray(this.editLoanModal?.labEquipments) ? this.editLoanModal.labEquipments : [];
+          const raw = String(query || '').trim().toLowerCase();
+          // Abaikan akhiran "(Sisa: X)" saat memfilter agar seluruh daftar tetap terlihat ketika kolom baru diklik
+          const cleanQuery = raw.replace(/\s*\(sisa:\s*\d+\)\s*$/i, '').trim();
+          if (!cleanQuery) return list;
+          return list.filter((eq) =>
+            String(eq.item_name || '').toLowerCase().includes(cleanQuery) ||
+            String(eq.item_id || '').toLowerCase().includes(cleanQuery)
+          );
         },
 
     openReturnAssessmentModal(loan) {
