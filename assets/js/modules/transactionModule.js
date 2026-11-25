@@ -244,8 +244,8 @@ export function createTransactionModule() {
           try {
             const fn = type === 'booking' ? 'apiProcessRoomBookingStep' : (type === 'loan' ? 'apiProcessLoanStep' : 'apiProcessUsageStep');
             const res = await this.runGas(fn, this.session.token, id, step, reason);
-            this.showToast(res.message);
-            await this.loadDashboard();
+            this.showToast(res.message || 'Status permohonan berhasil diperbarui');
+            await this.loadWorkspaceBundle(true);
             await this.loadPublicHome();
           } catch (e) { this.showToast(e.message, 'error'); }
         },
