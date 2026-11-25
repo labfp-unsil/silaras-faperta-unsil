@@ -840,40 +840,93 @@
           </div>
 
           <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="bg-white p-5 rounded-2xl border border-slate-200">
-              <p class="text-xs text-slate-500 font-semibold">Laboratorium Aktif</p>
+            <button type="button" @click="navigateFromDashCard('labs')"
+                    class="group bg-white p-5 rounded-2xl border border-slate-200 hover:border-emerald-500 hover:shadow-md transition text-left cursor-pointer">
+              <div class="flex items-center justify-between">
+                <p class="text-xs text-slate-500 font-semibold">Laboratorium Aktif</p>
+                <i class="fa-solid fa-arrow-up-right-from-square text-[11px] text-slate-300 group-hover:text-emerald-700 transition"></i>
+              </div>
               <p class="text-2xl font-extrabold text-emerald-950 mt-1" x-text="dashData.stats?.total_labs || 0"></p>
-            </div>
-            <div class="bg-white p-5 rounded-2xl border border-slate-200">
-              <p class="text-xs text-slate-500 font-semibold">Menunggu Verifikasi Laboran</p>
+              <p class="text-[11px] text-slate-400 group-hover:text-emerald-700 mt-1 transition">Lihat daftar lab &amp; inventaris</p>
+            </button>
+
+            <button type="button" @click="navigateFromDashCard('pending_verification')"
+                    class="group bg-white p-5 rounded-2xl border border-slate-200 hover:border-amber-500 hover:shadow-md transition text-left cursor-pointer">
+              <div class="flex items-center justify-between">
+                <p class="text-xs text-slate-500 font-semibold">Menunggu Verifikasi Laboran</p>
+                <i class="fa-solid fa-arrow-up-right-from-square text-[11px] text-slate-300 group-hover:text-amber-600 transition"></i>
+              </div>
               <p class="text-2xl font-extrabold text-amber-600 mt-1" x-text="dashData.stats?.pending_verification || 0"></p>
-            </div>
-            <div class="bg-white p-5 rounded-2xl border border-slate-200">
-              <p class="text-xs text-slate-500 font-semibold">Menunggu Persetujuan Ka. Lab</p>
+              <p class="text-[11px] text-slate-400 group-hover:text-amber-600 mt-1 transition">Buka antrean verifikasi</p>
+            </button>
+
+            <button type="button" @click="navigateFromDashCard('pending_approval')"
+                    class="group bg-white p-5 rounded-2xl border border-slate-200 hover:border-blue-500 hover:shadow-md transition text-left cursor-pointer">
+              <div class="flex items-center justify-between">
+                <p class="text-xs text-slate-500 font-semibold">Menunggu Persetujuan Ka. Lab</p>
+                <i class="fa-solid fa-arrow-up-right-from-square text-[11px] text-slate-300 group-hover:text-blue-600 transition"></i>
+              </div>
               <p class="text-2xl font-extrabold text-blue-600 mt-1" x-text="dashData.stats?.pending_approval || 0"></p>
-            </div>
-            <div class="bg-white p-5 rounded-2xl border border-slate-200">
-              <p class="text-xs text-slate-500 font-semibold">Peminjaman Alat Aktif</p>
+              <p class="text-[11px] text-slate-400 group-hover:text-blue-600 mt-1 transition">Buka antrean persetujuan</p>
+            </button>
+
+            <button type="button" @click="navigateFromDashCard('active_loans')"
+                    class="group bg-white p-5 rounded-2xl border border-slate-200 hover:border-emerald-600 hover:shadow-md transition text-left cursor-pointer">
+              <div class="flex items-center justify-between">
+                <p class="text-xs text-slate-500 font-semibold">Peminjaman Alat Aktif</p>
+                <i class="fa-solid fa-arrow-up-right-from-square text-[11px] text-slate-300 group-hover:text-emerald-700 transition"></i>
+              </div>
               <p class="text-2xl font-extrabold text-emerald-700 mt-1" x-text="dashData.stats?.active_loans || 0"></p>
-            </div>
+              <p class="text-[11px] text-slate-400 group-hover:text-emerald-700 mt-1 transition">Lihat peminjaman aktif</p>
+            </button>
           </div>
 
           <div class="bg-white rounded-2xl border border-slate-200 p-5">
-            <h3 class="font-bold text-emerald-950 mb-3"><i class="fa-solid fa-bell text-lime-600 mr-2"></i>Notifikasi & Peringatan Sistem</h3>
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div class="flex items-center gap-2">
+                <h3 class="font-bold text-emerald-950"><i class="fa-solid fa-bell text-lime-600 mr-2"></i>Notifikasi &amp; Peringatan Sistem</h3>
+                <span x-show="unreadNotificationsCount() > 0"
+                      x-text="unreadNotificationsCount() + ' Belum Dibaca'"
+                      class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800"></span>
+              </div>
+              <button type="button"
+                      x-show="unreadNotificationsCount() > 0"
+                      @click="markAllNotificationsRead()"
+                      class="text-xs font-semibold text-emerald-700 hover:text-emerald-900 hover:underline">
+                <i class="fa-solid fa-check-double mr-1"></i>Tandai Semua Dibaca
+              </button>
+            </div>
+
             <div class="space-y-2 max-h-64 overflow-y-auto">
               <template x-for="n in dashData.notifications || []" :key="n.notif_id">
-                <div class="p-3 rounded-xl border border-slate-100 bg-slate-50 flex items-start justify-between gap-3">
-                  <div>
-                    <p class="text-xs font-bold text-slate-900" x-text="n.title"></p>
-                    <p class="text-xs text-slate-600 mt-0.5" x-text="n.message"></p>
+                <button type="button"
+                        @click="openNotification(n)"
+                        :class="!n.is_read
+                          ? 'border-emerald-200 border-l-4 border-l-emerald-600 bg-emerald-50/70 hover:bg-emerald-100/70'
+                          : 'border-slate-100 bg-slate-50/60 opacity-75 hover:opacity-100 hover:bg-slate-100/70'"
+                        class="w-full p-3 rounded-xl border flex items-start justify-between gap-3 text-left transition cursor-pointer">
+                  <div class="flex items-start gap-2.5 min-w-0">
+                    <span x-show="!n.is_read" class="w-2 h-2 rounded-full bg-emerald-600 mt-1.5 shrink-0" title="Belum dibaca"></span>
+                    <i x-show="n.is_read" class="fa-solid fa-check text-[10px] text-slate-400 mt-1 shrink-0" title="Sudah dibaca"></i>
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <p :class="!n.is_read ? 'font-extrabold text-slate-950' : 'font-semibold text-slate-600'"
+                           class="text-xs" x-text="n.title"></p>
+                        <span x-show="!n.is_read" class="px-1.5 py-0.2 rounded bg-emerald-600 text-white text-[9px] font-bold uppercase">Baru</span>
+                        <span x-show="n.is_read" class="px-1.5 py-0.2 rounded bg-slate-200 text-slate-500 text-[9px] font-semibold">Dibaca</span>
+                      </div>
+                      <p class="text-xs text-slate-600 mt-0.5" x-text="n.message"></p>
+                    </div>
                   </div>
-                  <span class="text-[10px] text-slate-400 whitespace-nowrap" x-text="String(n.created_at || '').slice(0,10)"></span>
-                </div>
+                  <div class="flex flex-col items-end shrink-0 gap-1">
+                    <span class="text-[10px] text-slate-400 whitespace-nowrap" x-text="String(n.created_at || '').slice(0,10)"></span>
+                    <span class="text-[10px] font-semibold text-emerald-700">Buka <i class="fa-solid fa-chevron-right text-[8px]"></i></span>
+                  </div>
+                </button>
               </template>
               <p x-show="(dashData.notifications || []).length === 0" class="text-xs text-slate-400">Belum ada notifikasi baru.</p>
             </div>
           </div>
-        </div>
 
         <!-- 2. INVENTARIS (ALAT / BAHAN / BAHAN KIMIA) -->
         <div x-show="['inv_alat','inv_bahan','inv_kimia'].includes(activeMenu)" class="space-y-4">
