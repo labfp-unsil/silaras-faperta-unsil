@@ -60,7 +60,7 @@ export function createTransactionModule() {
               }
               items = stockList
                 .filter(s => (category === 'ALL' || s.category === category) && Number(s.qty_available) > 0)
-                .map(s => ({ ...s, pickQty: 1 }));
+                .map(s => ({ ...s, base_qty_available: Number(s.qty_available || 0), pickQty: 1 }));
             } else {
               const res = await this.runGas('apiGetInventory', this.session.token, category, labId);
               items = (res.items || [])
@@ -68,6 +68,7 @@ export function createTransactionModule() {
                 .map(x => ({
                   ...x,
                   inv_id: x.eq_inv_id || x.mat_inv_id || x.chem_inv_id,
+                  base_qty_available: Number(x.qty_available || 0),
                   pickQty: 1
                 }));
             }
@@ -75,6 +76,31 @@ export function createTransactionModule() {
           } catch (e) {
             this.showToast(e.message, 'error');
           }
+        },
+
+    getActivePickerTargetList() {
+          const t = this.catalogPickerModal?.target;
+          if (t === 'whOut') return this.whOutForm?.items || [];
+          if (t === 'loan') return this.loanForm?.items || [];
+          if (t === 'usage') return this.usageForm?.items || [];
+          if (t === 'booking_eq') return this.bookingForm?.equipment_items || [];
+          if (t === 'booking_mat') return this.bookingForm?.material_items || [];
+          if (t === 'booking_chem') return this.bookingForm?.chemical_items || [];
+          return [];
+        },
+
+    getRemainingPickerQty(c) {
+          const base = Number(c?.base_qty_available ?? c?.qty_available ?? 0);
+          const list = this.getActivePickerTargetList();
+          const normName = String(c?.item_name || '').trim().toLowerCase();
+          const picked = list.reduce((sum, x) => {
+            const sameId = (c?.eq_inv_id && x.eq_inv_id === c.eq_inv_id) ||
+                           (c?.inv_id && x.inv_id === c.inv_id);
+            const sameName = normName && String(x.item_name || '').trim().toLowerCase() === normName;
+            return (sameId || sameName) ? sum + Number(x.qty || x.qty_requested || 0) : sum;
+          }, 0);
+          const rem = base - picked;
+          return rem > 0 ? Number(rem.toFixed(4)) : 0;
         },
 
     filteredPickerCatalog() {
@@ -97,8 +123,9 @@ export function createTransactionModule() {
           this._lastPickKey = c.inv_id || c.item_id;
           this._lastPickTime = now;
 
-          const maxAvail = Number(c.qty_available || 0);
-          if (maxAvail <= 0) {
+          const baseAvail = Number(c.base_qty_available ?? c.qty_available ?? 0);
+          const remainingAvail = this.getRemainingPickerQty(c);
+          if (remainingAvail <= 0) {
             this.showToast('Stok tersedia 0, tidak dapat dipilih.', 'error');
             return;
           }
@@ -115,8 +142,8 @@ export function createTransactionModule() {
           const rawQty = Number(domQty || 1);
           const qty = isEquipment ? Math.round(rawQty) : rawQty;
 
-          if (qty <= 0 || qty > maxAvail) {
-            this.showToast('Kuantitas tidak valid atau melebihi stok tersedia (' + maxAvail + ' ' + (c.unit || 'Unit') + ')', 'error');
+          if (qty <= 0 || qty > remainingAvail) {
+            this.showToast('Kuantitas tidak valid atau melebihi sisa stok tersedia (' + remainingAvail + ' ' + (c.unit || 'Unit') + ')', 'error');
             return;
           }
 
@@ -129,8 +156,8 @@ export function createTransactionModule() {
             );
             if (existingIdx >= 0) {
               const combined = Number(list[existingIdx].qty || 0) + qty;
-              if (combined > maxAvail) {
-                this.showToast('Total kuantitas melebihi stok tersedia (' + maxAvail + ' ' + (c.unit || 'Unit') + ')', 'error');
+              if (combined > baseAvail) {
+                this.showToast('Total kuantitas melebihi stok tersedia (' + baseAvail + ' ' + (c.unit || 'Unit') + ')', 'error');
                 return false;
               }
               list[existingIdx].qty = combined;
@@ -149,7 +176,7 @@ export function createTransactionModule() {
               category: c.category,
               item_name: c.item_name,
               qty,
-              max_qty: maxAvail,
+              max_qty: baseAvail,
               unit: c.unit
             });
           } else if (t === 'loan') {
@@ -175,7 +202,7 @@ export function createTransactionModule() {
               item_id: c.item_id,
               item_name: c.item_name,
               qty,
-              max_qty: maxAvail,
+              max_qty: baseAvail,
               unit: c.unit || 'Unit'
             });
           } else if (t === 'booking_mat') {
@@ -184,7 +211,7 @@ export function createTransactionModule() {
               item_id: c.item_id,
               item_name: c.item_name,
               qty,
-              max_qty: maxAvail,
+              max_qty: baseAvail,
               unit: c.unit || 'Satuan'
             });
           } else if (t === 'booking_chem') {
@@ -193,7 +220,7 @@ export function createTransactionModule() {
               item_id: c.item_id,
               item_name: c.item_name,
               qty,
-              max_qty: maxAvail,
+              max_qty: baseAvail,
               unit: c.unit || 'Satuan'
             });
           }
