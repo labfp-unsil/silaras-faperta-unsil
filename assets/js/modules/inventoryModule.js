@@ -14,6 +14,8 @@ export function createInventoryModule() {
 
     invDetailModal: { open: false, item: null },
 
+    quickBorrowModal: { open: false, item: null, qty: 1 },
+
     invFormModal: { open: false, is_edit: false, data: {} },
 
     invFormSuggestions: [],
@@ -406,17 +408,48 @@ export function createInventoryModule() {
         },
 
     quickRequestFromDetail(item) {
-          this.invDetailModal.open = false;
+          if (!item) return;
           if (this.currentInvCategory() === 'Alat') {
-            this.loanForm.lab_id = item.location_id;
-            this.loanForm.items = [{ eq_inv_id: item.eq_inv_id, item_id: item.item_id, item_name: item.item_name, qty: 1, unit: item.unit || 'Unit' }];
-            this.navigate('pinjam_alat');
+            this.quickBorrowModal = {
+              open: true,
+              item: { ...item },
+              qty: 1
+            };
           } else {
+            this.invDetailModal.open = false;
             this.usageForm.category = this.currentInvCategory();
             this.usageForm.lab_id = item.location_id;
             this.usageForm.items = [{ inv_id: item.mat_inv_id || item.chem_inv_id, item_id: item.item_id, item_name: item.item_name, qty: 1, unit: item.unit }];
             this.navigate('guna_bahan');
           }
+        },
+
+    confirmQuickBorrowModal() {
+          const item = this.quickBorrowModal.item;
+          if (!item) return;
+          const maxAvail = Number(item.qty_available || 0);
+          const qtyReq = Math.round(Number(this.quickBorrowModal.qty || 0));
+
+          if (qtyReq <= 0) {
+            this.showToast('Jumlah alat yang dipinjam minimal 1 unit.', 'error');
+            return;
+          }
+          if (qtyReq > maxAvail) {
+            this.showToast(`Jumlah pinjam (${qtyReq}) melebihi stok tersedia (${maxAvail} ${item.unit || 'Unit'}).`, 'error');
+            return;
+          }
+
+          this.quickBorrowModal.open = false;
+          this.invDetailModal.open = false;
+          this.loanForm.lab_id = item.location_id;
+          this.loanForm.items = [{
+            eq_inv_id: item.eq_inv_id,
+            item_id: item.item_id,
+            item_name: item.item_name,
+            qty: qtyReq,
+            unit: item.unit || 'Unit'
+          }];
+          this.navigate('pinjam_alat');
         },
 
     async loadMasterItems() {
