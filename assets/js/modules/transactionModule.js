@@ -66,52 +66,109 @@ export function createTransactionModule() {
         },
 
     confirmPickItem(c) {
-          if (Number(c.qty_available || 0) <= 0) {
-            this.showToast('Stok alat tersedia 0, tidak dapat dipilih untuk peminjaman.', 'error');
+          const maxAvail = Number(c.qty_available || 0);
+          if (maxAvail <= 0) {
+            this.showToast('Stok tersedia 0, tidak dapat dipilih.', 'error');
             return;
           }
-          const qty = Number(c.pickQty || 1);
-          if (qty <= 0 || qty > Number(c.qty_available)) {
-            this.showToast('Kuantitas melebihi stok tersedia', 'error');
-            return;
-          }
-          const t = this.catalogPickerModal.target;
 
-          if (t === 'whOut') {
-            const existingIdx = this.whOutForm.items.findIndex(x => x.inv_id === c.inv_id);
-            if (existingIdx >= 0) {
-              const combined = Number(this.whOutForm.items[existingIdx].qty) + qty;
-              if (combined > Number(c.qty_available)) {
-                this.showToast('Total kuantitas melebihi sisa stok gudang (' + c.qty_available + ' ' + c.unit + ')', 'error');
-                return;
-              }
-              this.whOutForm.items[existingIdx].qty = combined;
-            } else {
-              this.whOutForm.items.push({
-                inv_id: c.inv_id,
-                item_id: c.item_id,
-                category: c.category,
-                item_name: c.item_name,
-                qty: qty,
-                max_qty: c.qty_available,
-                unit: c.unit
-              });
-            }
-          } else if (t === 'loan') {
-            this.loanForm.items.push({ eq_inv_id: c.eq_inv_id, item_id: c.item_id, item_name: c.item_name, qty, unit: c.unit || 'Unit' });
-          } else if (t === 'usage') {
-            this.usageForm.items.push({ inv_id: c.inv_id, item_id: c.item_id, item_name: c.item_name, qty, unit: c.unit });
-          } else if (t === 'booking_eq') {
-            this.bookingForm.equipment_items.push({ eq_inv_id: c.eq_inv_id, item_id: c.item_id, item_name: c.item_name, qty });
-          } else if (t === 'booking_mat') {
-            this.bookingForm.material_items.push({ inv_id: c.inv_id, item_id: c.item_id, item_name: c.item_name, qty });
-          } else if (t === 'booking_chem') {
-            this.bookingForm.chemical_items.push({ inv_id: c.inv_id, item_id: c.item_id, item_name: c.item_name, qty });
+          const t = this.catalogPickerModal.target;
+          const isEquipment = this.catalogPickerModal.category === 'Alat' || c.category === 'Alat' || t === 'loan' || t === 'booking_eq';
+          const rawQty = Number(c.pickQty || 1);
+          const qty = isEquipment ? Math.round(rawQty) : rawQty;
+
+          if (qty <= 0 || qty > maxAvail) {
+            this.showToast('Kuantitas tidak valid atau melebihi stok tersedia (' + maxAvail + ' ' + (c.unit || 'Unit') + ')', 'error');
+            return;
           }
-          this.showToast(c.item_name + ' ditambahkan');
+
+          const mergeOrPush = (list, newItem) => {
+            const normName = String(c.item_name || '').trim().toLowerCase();
+            const existingIdx = list.findIndex(x =>
+              (c.eq_inv_id && x.eq_inv_id === c.eq_inv_id) ||
+              (c.inv_id && x.inv_id === c.inv_id) ||
+              (normName && String(x.item_name || '').trim().toLowerCase() === normName)
+            );
+            if (existingIdx >= 0) {
+              const combined = Number(list[existingIdx].qty || 0) + qty;
+              if (combined > maxAvail) {
+                this.showToast('Total kuantitas melebihi stok tersedia (' + maxAvail + ' ' + (c.unit || 'Unit') + ')', 'error');
+                return false;
+              }
+              list[existingIdx].qty = combined;
+              if ('qty_requested' in list[existingIdx]) list[existingIdx].qty_requested = combined;
+            } else {
+              list.push(newItem);
+            }
+            return true;
+          };
+
+          let ok = false;
+          if (t === 'whOut') {
+            ok = mergeOrPush(this.whOutForm.items, {
+              inv_id: c.inv_id,
+              item_id: c.item_id,
+              category: c.category,
+              item_name: c.item_name,
+              qty,
+              max_qty: maxAvail,
+              unit: c.unit
+            });
+          } else if (t === 'loan') {
+            ok = mergeOrPush(this.loanForm.items, {
+              eq_inv_id: c.eq_inv_id || c.inv_id,
+              item_id: c.item_id,
+              item_name: c.item_name,
+              qty,
+              qty_requested: qty,
+              unit: c.unit || 'Unit'
+            });
+          } else if (t === 'usage') {
+            ok = mergeOrPush(this.usageForm.items, {
+              inv_id: c.inv_id,
+              item_id: c.item_id,
+              item_name: c.item_name,
+              qty,
+              unit: c.unit
+            });
+          } else if (t === 'booking_eq') {
+            ok = mergeOrPush(this.bookingForm.equipment_items, {
+              eq_inv_id: c.eq_inv_id || c.inv_id,
+              item_id: c.item_id,
+              item_name: c.item_name,
+              qty
+            });
+          } else if (t === 'booking_mat') {
+            ok = mergeOrPush(this.bookingForm.material_items, {
+              inv_id: c.inv_id,
+              item_id: c.item_id,
+              item_name: c.item_name,
+              qty
+            });
+          } else if (t === 'booking_chem') {
+            ok = mergeOrPush(this.bookingForm.chemical_items, {
+              inv_id: c.inv_id,
+              item_id: c.item_id,
+              item_name: c.item_name,
+              qty
+            });
+          }
+
+          if (ok) {
+            c.pickQty = 1;
+            this.showToast(c.item_name + ' ditambahkan');
+          }
         },
 
     async submitLoan() {
+          if (!this.loanForm.lab_id) {
+            this.showToast('Silakan pilih laboratorium terlebih dahulu.', 'error');
+            return;
+          }
+          if (!this.loanForm.purpose || !String(this.loanForm.purpose).trim()) {
+            this.showToast('Tujuan peminjaman wajib diisi.', 'error');
+            return;
+          }
           if (!this.loanForm.items || this.loanForm.items.length === 0) {
             this.showToast('Pilih minimal 1 alat sebelum mengirim permohonan.', 'error');
             return;
@@ -122,10 +179,14 @@ export function createTransactionModule() {
             return;
           }
           try {
-            this.showToast(res.message);
+            const res = await this.runGas('apiCreateEquipmentLoan', this.session.token, this.loanForm);
+            this.showToast(res.message || 'Permohonan peminjaman alat berhasil dikirim');
             this.loanForm.items = [];
+            this.loanForm.purpose = '';
             await this.loadDashboard();
-          } catch (e) { this.showToast(e.message, 'error'); }
+          } catch (e) {
+            this.showToast(e.message, 'error');
+          }
         },
 
     async submitUsage() {
