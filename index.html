@@ -1943,12 +1943,50 @@
                 <input type="date" x-model="bookingForm.booking_date" class="w-full px-3 py-2 border rounded-xl text-sm" />
               </div>
               <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">Jam Mulai *</label>
-                <input type="time" x-model="bookingForm.start_time" class="w-full px-3 py-2 border rounded-xl text-sm" />
+                <label class="block text-xs font-bold text-slate-700 mb-1">Jam Mulai (24 Jam) *</label>
+                <div class="flex items-center gap-1.5">
+                  <select :value="String(bookingForm.start_time || '08:00').split(':')[0]"
+                          @change="setBookingTimePart('start_time', 'hour', $event.target.value)"
+                          aria-label="Jam Mulai"
+                          class="w-full px-2.5 py-2 border border-slate-300 rounded-xl text-sm font-mono font-semibold bg-white">
+                    <template x-for="h in Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))" :key="'sh-' + h">
+                      <option :value="h" x-text="h"></option>
+                    </template>
+                  </select>
+                  <span class="font-bold text-slate-500">:</span>
+                  <select :value="String(bookingForm.start_time || '08:00').split(':')[1]"
+                          @change="setBookingTimePart('start_time', 'minute', $event.target.value)"
+                          aria-label="Menit Mulai"
+                          class="w-full px-2.5 py-2 border border-slate-300 rounded-xl text-sm font-mono font-semibold bg-white">
+                    <template x-for="m in Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'))" :key="'sm-' + m">
+                      <option :value="m" x-text="m"></option>
+                    </template>
+                  </select>
+                  <span class="text-xs font-bold text-slate-400 shrink-0">WIB</span>
+                </div>
               </div>
               <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">Jam Selesai *</label>
-                <input type="time" x-model="bookingForm.end_time" class="w-full px-3 py-2 border rounded-xl text-sm" />
+                <label class="block text-xs font-bold text-slate-700 mb-1">Jam Selesai (24 Jam) *</label>
+                <div class="flex items-center gap-1.5">
+                  <select :value="String(bookingForm.end_time || '10:00').split(':')[0]"
+                          @change="setBookingTimePart('end_time', 'hour', $event.target.value)"
+                          aria-label="Jam Selesai"
+                          class="w-full px-2.5 py-2 border border-slate-300 rounded-xl text-sm font-mono font-semibold bg-white">
+                    <template x-for="h in Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))" :key="'eh-' + h">
+                      <option :value="h" x-text="h"></option>
+                    </template>
+                  </select>
+                  <span class="font-bold text-slate-500">:</span>
+                  <select :value="String(bookingForm.end_time || '10:00').split(':')[1]"
+                          @change="setBookingTimePart('end_time', 'minute', $event.target.value)"
+                          aria-label="Menit Selesai"
+                          class="w-full px-2.5 py-2 border border-slate-300 rounded-xl text-sm font-mono font-semibold bg-white">
+                    <template x-for="m in Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'))" :key="'em-' + m">
+                      <option :value="m" x-text="m"></option>
+                    </template>
+                  </select>
+                  <span class="text-xs font-bold text-slate-400 shrink-0">WIB</span>
+                </div>
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-700 mb-1">Jumlah Peserta *</label>
