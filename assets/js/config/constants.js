@@ -1,5 +1,6 @@
 export const CONFIG = {
-  // URL Endpoint Supabase Edge Function (silaras-api)
+  // URL Root & Edge Function Supabase (silaras-api)
+  SUPABASE_URL: 'https://sjoiibckbqamfahjlgmx.supabase.co',
   GAS_WEB_APP_URL: 'https://sjoiibckbqamfahjlgmx.supabase.co/functions/v1/silaras-api',
   SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNqb2lpYmNrYnFhbWZhaGpsZ214Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU1MDIwNDQsImV4cCI6MjExMTA3ODA0NH0.isVDLWhpVCZ-ZT1wYmBsWMbM8r2vE1ahSPsQXHNPlWI',
   GOOGLE_CLIENT_ID: '590628358605-7h6qqndr7db2l5mkl4viuivhekt37l3a.apps.googleusercontent.com',
