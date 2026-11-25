@@ -48,6 +48,7 @@ export function createAdminModule() {
               verifikasi: viewEdit, laporan: viewOnly, audit: viewOnly
             }),
             'User': build({
+              inv_alat: viewOnly, inv_bahan: viewOnly, inv_kimia: viewOnly,
               pinjam_alat: viewEdit, guna_bahan: viewEdit, booking_ruang: viewEdit
             })
           };
@@ -131,10 +132,10 @@ export function createAdminModule() {
 
           const map = {
             master_data: ['Admin', 'Petugas Gudang', 'Laboran'],
-            inv_alat: ['Admin', 'Petugas Gudang', 'Laboran', 'Kepala Laboratorium'],
+            inv_alat: ['Admin', 'Petugas Gudang', 'Laboran', 'Kepala Laboratorium', 'User'],
             alat_rusak: ['Admin', 'Petugas Gudang', 'Laboran', 'Kepala Laboratorium'],
-            inv_bahan: ['Admin', 'Petugas Gudang', 'Laboran', 'Kepala Laboratorium'],
-            inv_kimia: ['Admin', 'Petugas Gudang', 'Laboran', 'Kepala Laboratorium'],
+            inv_bahan: ['Admin', 'Petugas Gudang', 'Laboran', 'Kepala Laboratorium', 'User'],
+            inv_kimia: ['Admin', 'Petugas Gudang', 'Laboran', 'Kepala Laboratorium', 'User'],
             gudang: ['Admin', 'Petugas Gudang', 'Laboran'],
             pinjam_alat: ['Admin', 'Laboran', 'Kepala Laboratorium', 'User'],
             guna_bahan: ['Admin', 'Laboran', 'Kepala Laboratorium', 'User'],
