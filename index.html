@@ -1814,7 +1814,7 @@
                           </div>
                         </td>
                         <td class="px-3 py-2 space-y-0.5">
-                          <template x-for="it in (l.items || []).filter((v, i, arr) => arr.findIndex(x => x.loan_item_id === v.loan_item_id) === i)" :key="it.loan_item_id">
+                          <template x-for="(it, idx) in uniqueLoanItems(l.items)" :key="(it.item_name || it.item_id) + '-' + idx">
                             <div x-text="it.item_name + ' (' + it.qty_requested + ') [' + (it.return_condition || it.initial_condition || 'Baik') + ']'"></div>
                           </template>
                         </td>
