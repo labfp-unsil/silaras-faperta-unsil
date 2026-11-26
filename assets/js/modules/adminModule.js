@@ -31,7 +31,7 @@ export function createAdminModule() {
             'Admin': build({
               master_data: full, inv_alat: full, alat_rusak: full, inv_bahan: full, inv_kimia: full,
               gudang: viewEdit, pinjam_alat: viewOnly, guna_bahan: viewOnly, booking_ruang: viewOnly,
-              verifikasi: viewOnly, laporan: viewOnly, audit: viewOnly, settings: viewEdit
+              verifikasi: viewOnly, laporan: viewOnly, audit: viewOnly
             }),
             'Petugas Gudang': build({
               master_data: viewEdit, inv_alat: viewOnly, alat_rusak: viewOnly, inv_bahan: viewOnly, inv_kimia: viewOnly,
