@@ -1,5 +1,152 @@
 export function createDocGeneratorMixin() {
   return {
+    generateEquipmentLoanDoc(loan) {
+          if (!loan) return;
+          const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+          const formatDateIndo = (ymd) => {
+            const raw = String(ymd || '').slice(0, 10);
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw || '-';
+            const [y, m, d] = raw.split('-');
+            return `${Number(d)} ${months[Number(m) - 1] || m} ${y}`;
+          };
+
+          const today = new Date();
+          const tanggalCetak = `${today.getDate()} ${months[today.getMonth()]} ${today.getFullYear()}`;
+          const prof = loan.borrower_profile || {};
+          const fallbackUser = (this.adminData?.users || []).find(
+            (u) => u.user_id === loan.user_id || (u.full_name && u.full_name === loan.borrower_name)
+          ) || {};
+
+          const namaPeminjam = prof.full_name || fallbackUser.full_name || loan.borrower_name || '-';
+          const nimNip = prof.nim_nip || fallbackUser.nim_nip || '-';
+          const unitProdi = prof.unit_prodi || fallbackUser.unit_prodi || '-';
+          const emailPeminjam = prof.email || fallbackUser.email || '-';
+          const phonePeminjam = prof.phone || fallbackUser.phone || '-';
+          const namaLab = loan.lab_name || loan.lab_id || 'Laboratorium Fakultas Pertanian';
+          const labInfo = (this.publicData?.labs || this.adminData?.labs || []).find((lb) => lb.lab_id === loan.lab_id) || {};
+          const namaKalab = labInfo.pic_name || '....................................................';
+
+          const itemsList = typeof this.uniqueLoanItems === 'function'
+            ? this.uniqueLoanItems(loan.items || [])
+            : (loan.items || []);
+
+          const rowsHtml = itemsList.length > 0
+            ? itemsList.map((it, idx) => {
+                const qty = Number(it.qty_requested ?? it.qty ?? 0);
+                const unit = it.unit || 'Unit';
+                const kondisi = it.condition_before || it.condition_status || 'Baik';
+                return `
+                  <tr>
+                    <td style="text-align:center;">${idx + 1}</td>
+                    <td>${it.item_id || '-'}</td>
+                    <td><b>${it.item_name || '-'}</b></td>
+                    <td style="text-align:center;">${qty} ${unit}</td>
+                    <td style="text-align:center;">${kondisi}</td>
+                  </tr>
+                `;
+              }).join('')
+            : `<tr><td colspan="5" style="text-align:center;">Tidak ada rincian peralatan.</td></tr>`;
+
+          const htmlDoc = `
+            <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head><meta charset='utf-8'><title>Formulir Peminjaman Peralatan Laboratorium - ${loan.loan_id || ''}</title>
+            <style>
+              body { font-family: 'Times New Roman', serif; font-size: 11.5pt; line-height: 1.45; margin: 1.8cm 2cm; }
+              .kop { text-align: center; border-bottom: 3px double #000; padding-bottom: 8px; margin-bottom: 16px; }
+              .kop h2, .kop h3, .kop p { margin: 2px 0; }
+              .title { text-align: center; font-weight: bold; text-decoration: underline; margin: 14px 0 2px 0; font-size: 13pt; }
+              .nomor { text-align: center; margin-bottom: 16px; font-size: 11pt; }
+              table.info { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11pt; }
+              table.info td { padding: 3px 4px; vertical-align: top; }
+              table.data { width: 100%; border-collapse: collapse; margin: 12px 0; }
+              table.data th, table.data td { border: 1px solid #000; padding: 6px 8px; text-align: left; font-size: 10.5pt; }
+              table.data th { background-color: #f0f0f0; text-align: center; }
+              .status-box { border: 1px solid #000; background-color: #f8fafc; padding: 8px 10px; margin: 12px 0; font-size: 10.5pt; }
+              table.ttd { width: 100%; margin-top: 28px; text-align: center; font-size: 10.5pt; }
+              table.ttd td { width: 33.3%; vertical-align: top; padding: 0 4px; }
+            </style>
+            </head>
+            <body>
+              <div class="kop">
+                <h3>KEMENTERIAN PENDIDIKAN TINGGI, SAINS, DAN TEKNOLOGI</h3>
+                <h2>UNIVERSITAS SILIWANGI</h2>
+                <h3>FAKULTAS PERTANIAN</h3>
+                <p style="font-size:10pt;">Jalan Siliwangi No. 24 Kotak Pos 164 Tasikmalaya 46115</p>
+              </div>
+
+              <div class="title">FORMULIR PEMINJAMAN PERALATAN LABORATORIUM</div>
+              <div class="nomor">Nomor Transaksi: <b>${loan.loan_id || '-'}</b></div>
+
+              <p>Yang bertanda tangan di bawah ini:</p>
+              <table class="info">
+                <tr><td style="width:170px;">Nama Lengkap</td><td style="width:15px;">:</td><td><b>${namaPeminjam}</b></td></tr>
+                <tr><td>NIM / NIP</td><td>:</td><td>${nimNip}</td></tr>
+                <tr><td>Unit / Program Studi</td><td>:</td><td>${unitProdi}</td></tr>
+                <tr><td>Email / No. HP</td><td>:</td><td>${emailPeminjam} / ${phonePeminjam}</td></tr>
+                <tr><td>Laboratorium Tujuan</td><td>:</td><td><b>${namaLab}</b></td></tr>
+                <tr><td>Tanggal Peminjaman</td><td>:</td><td>${formatDateIndo(loan.loan_date)} s.d. ${formatDateIndo(loan.due_date)}</td></tr>
+                <tr><td>Tujuan Peminjaman</td><td>:</td><td>${loan.purpose || '-'}</td></tr>
+              </table>
+
+              <p>Mengajukan permohonan peminjaman peralatan laboratorium dengan rincian sebagai berikut:</p>
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th style="width:36px;">No</th>
+                    <th style="width:95px;">Kode Barang</th>
+                    <th>Nama Peralatan</th>
+                    <th style="width:90px;">Jumlah</th>
+                    <th style="width:95px;">Kondisi Awal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${rowsHtml}
+                </tbody>
+              </table>
+
+              <div class="status-box">
+                <b>Status Permohonan:</b> DISETUJUI KEPALA LABORATORIUM (<i>${loan.status || 'borrowed'}</i>)<br/>
+                Peminjam bertanggung jawab penuh menjaga kebersihan, keamanan, dan keutuhan peralatan selama masa peminjaman hingga dikembalikan ke laboratorium.
+              </div>
+
+              <table class="ttd">
+                <tr>
+                  <td>
+                    Menyetujui,<br/>Kepala ${namaLab}
+                    <br/><br/><br/><br/>
+                    <b>( ${namaKalab} )</b><br/>
+                    <i>Disetujui via Sistem SILARAS</i>
+                  </td>
+                  <td>
+                    Mengetahui / Verifikasi,<br/>Laboran Pengelola
+                    <br/><br/><br/><br/>
+                    ( ........................................ )<br/>
+                    NIP/NIK. ............................
+                  </td>
+                  <td>
+                    Tasikmalaya, ${tanggalCetak}<br/>Peminjam
+                    <br/><br/><br/><br/>
+                    <b>( ${namaPeminjam} )</b><br/>
+                    NIM/NIP. ${nimNip}
+                  </td>
+                </tr>
+              </table>
+            </body>
+            </html>
+          `;
+
+          const blob = new Blob(['\ufeff', htmlDoc], { type: 'application/msword' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `Formulir_Peminjaman_${loan.loan_id || 'SILARAS'}.doc`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          this.showToast('Dokumen Peminjaman Peralatan (.doc) berhasil diunduh');
+        },
+
     generateAssetDisposalBA(item) {
           if (!item) return;
           const today = new Date();
