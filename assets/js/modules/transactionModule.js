@@ -296,13 +296,19 @@ export function createTransactionModule() {
             this.showToast('Silakan pilih lokasi laboratorium terlebih dahulu.', 'error');
             return;
           }
+          const unitProdiVal = String(this.bookingForm.unit_prodi || '').trim();
+          if (!unitProdiVal || unitProdiVal === '-') {
+            this.showToast('Unit / Program Studi wajib diisi.', 'error');
+            return;
+          }
           if (!this.bookingForm.activity_type || !String(this.bookingForm.activity_type).trim()) {
             this.showToast('Silakan pilih jenis kegiatan terlebih dahulu.', 'error');
             return;
           }
           if (!this.bookingForm.activity_title || !String(this.bookingForm.activity_title).trim()) {
-            this.showToast('Judul / tujuan kegiatan wajib diisi.', 'error');
+            this.showToast('Judul / Tujuan Kegiatan / Mata Kuliah wajib diisi.', 'error');
             return;
+          }
           }
           if (this.bookingForm.activity_type === 'Praktikum') {
             this.bookingForm.participant_count = 40;
