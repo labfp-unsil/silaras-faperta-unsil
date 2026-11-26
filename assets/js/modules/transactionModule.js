@@ -198,6 +198,7 @@ export function createTransactionModule() {
               item_name: c.item_name,
               qty,
               qty_requested: qty,
+              max_qty: baseAvail,
               unit: c.unit || 'Unit'
             });
           } else if (t === 'usage') {
@@ -246,6 +247,27 @@ export function createTransactionModule() {
             this.catalogPickerModal.open = false;
             this.showToast(c.item_name + ' ditambahkan');
           }
+        },
+		
+	updateLoanItemQty(targetItem, rawVal) {
+          if (!targetItem) return;
+          const maxQty = Number(targetItem.max_qty || 0);
+          let val = Math.max(1, Math.round(Number(rawVal || 1)));
+          if (maxQty > 0 && val > maxQty) {
+            val = maxQty;
+            this.showToast('Jumlah maksimal tersedia untuk ' + targetItem.item_name + ' adalah ' + maxQty + ' ' + targetItem.unit, 'error');
+          }
+          targetItem.qty = val;
+          targetItem.qty_requested = val;
+        },
+
+    removeLoanItem(targetItem) {
+          if (!targetItem) return;
+          const key = targetItem.eq_inv_id || targetItem.item_id;
+          this.loanForm.items = this.loanForm.items.filter(
+            (x) => (x.eq_inv_id || x.item_id) !== key
+          );
+          this.showToast(targetItem.item_name + ' dihapus dari daftar');
         },
 
     async submitLoan() {
