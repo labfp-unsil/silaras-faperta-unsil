@@ -309,7 +309,6 @@ export function createTransactionModule() {
             this.showToast('Judul / Tujuan Kegiatan / Mata Kuliah wajib diisi.', 'error');
             return;
           }
-          }
           if (this.bookingForm.activity_type === 'Praktikum') {
             this.bookingForm.participant_count = 40;
           }
