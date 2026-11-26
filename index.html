@@ -1851,10 +1851,23 @@
                 <i class="fa-solid fa-plus mr-1"></i> Pilih / Tambah Alat dari Katalog Lab
               </button>
               <div class="mt-3 space-y-2">
-                <template x-for="(it, idx) in loanForm.items" :key="idx">
-                  <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border text-xs">
-                    <span class="font-bold" x-text="it.item_name + ' (' + it.qty + ' ' + it.unit + ')'"></span>
-                    <button type="button" @click="loanForm.items.splice(idx, 1)" class="text-red-600 p-1"><i class="fa-solid fa-trash"></i></button>
+                <template x-for="it in loanForm.items" :key="it.eq_inv_id || it.item_id">
+                  <div class="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-slate-50 rounded-xl border text-xs">
+                    <div>
+                      <div class="font-bold text-slate-800" x-text="it.item_name"></div>
+                      <div class="text-[11px] text-slate-500" x-show="it.max_qty" x-text="'Maks. tersedia: ' + it.max_qty + ' ' + (it.unit || 'Unit')"></div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <label class="text-slate-600 font-semibold">Jumlah:</label>
+                      <input type="number" min="1" :max="it.max_qty || 9999" step="1"
+                        :value="it.qty"
+                        @change="updateLoanItemQty(it, $event.target.value)"
+                        class="w-20 px-2 py-1 border border-slate-300 rounded-lg text-center font-bold bg-white" />
+                      <span class="text-slate-600 font-semibold" x-text="it.unit || 'Unit'"></span>
+                      <button type="button" @click="removeLoanItem(it)" title="Hapus item ini" class="ml-1 px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 font-semibold">
+                        <i class="fa-solid fa-trash mr-1"></i> Hapus
+                      </button>
+                    </div>
                   </div>
                 </template>
               </div>
