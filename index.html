@@ -2263,6 +2263,14 @@
                             Batalkan
                           </button>
 
+                          <!-- Unduh Dokumen Peminjaman (jika sudah disetujui Kepala Laboratorium) -->
+                          <button type="button" x-show="['borrowed','approved','approved_kalab','active_borrowed','returned_partial','return_requested','returned'].includes(l.status)"
+                                  @click="generateEquipmentLoanDoc(l)"
+                                  title="Unduh Formulir Peminjaman Peralatan (.doc)"
+                                  class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">
+                            <i class="fa-solid fa-file-word mr-1"></i>Unduh Dokumen
+                          </button>
+
                           <!-- Aksi User Peminjam: Pengembalian -->
                           <button type="button" x-show="['borrowed','approved','active_borrowed','returned_partial'].includes(l.status) && l.user_id === session?.user_id"
                                   @click="userRequestReturn(l.loan_id)"
