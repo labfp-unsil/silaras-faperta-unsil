@@ -2221,7 +2221,7 @@
                           </div>
                         </td>
                         <td class="px-3 py-2 space-y-0.5" x-html="renderLoanItemsHtml(l.items)"></td>
-                        <td class="px-3 py-2 font-bold" x-text="l.status"></td>
+                        <td class="px-3 py-2 font-bold" x-text="formatLoanStatusLabel(l.status)"></td>
                         <td class="px-3 py-2 text-[11px] text-slate-600 max-w-[200px]" x-text="getTransactionNotes(l)"></td>
                         <td class="px-3 py-2 space-x-1 space-y-1">
                           <!-- Aksi Laboran: Edit Item Alat & Verifikasi -->
