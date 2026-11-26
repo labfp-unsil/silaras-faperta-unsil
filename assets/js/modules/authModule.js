@@ -150,8 +150,9 @@ export function createAuthModule() {
               unit_prodi: this.session.unit_prodi || '',
               phone: this.session.phone || ''
             };
+            const cleanUnitProdi = String(this.session.unit_prodi || '').trim();
             this.bookingForm.pic_name = this.session.full_name || '';
-            this.bookingForm.unit_prodi = this.session.unit_prodi || '';
+            this.bookingForm.unit_prodi = cleanUnitProdi === '-' ? '' : cleanUnitProdi;
 
             this.showToast('Selamat datang di SILARAS, ' + this.session.full_name);
             await this.loadWorkspaceBundle(false);
@@ -228,8 +229,9 @@ export function createAuthModule() {
         localStorage.setItem('SILARAS_SESSION', JSON.stringify(this.session));
         this.authModal.open = false;
         this.profileForm.full_name = this.session.full_name;
-        this.bookingForm.pic_name = this.session.full_name;
-        this.bookingForm.unit_prodi = this.session.unit_prodi;
+        const cleanUnitProdi = String(this.session.unit_prodi || '').trim();
+        this.bookingForm.pic_name = this.session.full_name || '';
+        this.bookingForm.unit_prodi = cleanUnitProdi === '-' ? '' : cleanUnitProdi;
         this.showToast('Selamat datang di SILARAS, ' + this.session.full_name);
         await this.loadWorkspaceBundle(false);
       } catch (e) {
