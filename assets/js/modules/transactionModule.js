@@ -44,6 +44,32 @@ export function createTransactionModule() {
 
     catalogPickerModal: { open: false, category: 'Alat', target: '', search: '', items: [] },
 
+    borrowerDetailModal: {
+      open: false,
+      title: 'Detail Informasi Peminjam',
+      data: { full_name: '-', email: '-', nim_nip: '-', unit_prodi: '-', phone: '-' }
+    },
+
+    openBorrowerDetailModal(record, title = 'Detail Informasi Peminjam') {
+      const prof = record?.borrower_profile || record?.requester_profile || record?.pic_profile || {};
+      const fallbackName = record?.borrower_name || record?.requester_name || record?.pic_name || '-';
+      const fallbackUser = (this.adminData?.users || []).find(
+        (u) => u.user_id === record?.user_id || (u.full_name && u.full_name === fallbackName)
+      ) || {};
+
+      this.borrowerDetailModal = {
+        open: true,
+        title,
+        data: {
+          full_name: prof.full_name || fallbackUser.full_name || fallbackName || '-',
+          email: prof.email || fallbackUser.email || '-',
+          nim_nip: prof.nim_nip || fallbackUser.nim_nip || record?.pic_nim_nip || '-',
+          unit_prodi: prof.unit_prodi || fallbackUser.unit_prodi || record?.unit_prodi || '-',
+          phone: prof.phone || fallbackUser.phone || '-'
+        }
+      };
+    },
+
     filteredApprovalList(list) {
           const items = list || [];
           if (this.isSuperAdmin()) return items;
