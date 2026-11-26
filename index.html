@@ -1989,8 +1989,10 @@
                 </div>
               </div>
               <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">Jumlah Peserta *</label>
-                <input type="number" min="1" x-model.number="bookingForm.participant_count" class="w-full px-3 py-2 border rounded-xl text-sm" />
+                <label class="block text-xs font-bold text-slate-700 mb-1">
+                  Jumlah Peserta (Maks. <span x-text="getSelectedBookingLabMaxCapacity()"></span>) *
+                </label>
+                <input type="number" min="1" :max="getSelectedBookingLabMaxCapacity()" x-model.number="bookingForm.participant_count" class="w-full px-3 py-2 border rounded-xl text-sm" />
               </div>
             </div>
 
@@ -2473,6 +2475,7 @@
                     <th class="px-3 py-2.5">Posisi Lab</th>
                     <th class="px-3 py-2.5">Keterangan Informasi Umum</th>
                     <th class="px-3 py-2.5">Kepala Laboratorium</th>
+                    <th class="px-3 py-2.5">Maks. Pengguna / Waktu</th>
                     <th class="px-3 py-2.5">Status</th>
                     <th class="px-3 py-2.5">Aksi</th>
                   </tr>
@@ -2485,6 +2488,7 @@
                       <td class="px-3 py-2.5 font-medium text-emerald-800" x-text="lb.lab_position || lb.lab_code || '-'"></td>
                       <td class="px-3 py-2.5 text-slate-600 max-w-xs" x-text="lb.description || '-'"></td>
                       <td class="px-3 py-2.5 text-slate-700" x-text="lb.pic_name || '-'"></td>
+                      <td class="px-3 py-2.5 font-bold text-emerald-900 whitespace-nowrap" x-text="(lb.max_capacity || 40) + ' Orang'"></td>
                       <td class="px-3 py-2.5">
                         <span class="px-2 py-0.5 rounded-full text-[11px] font-bold"
                               :class="lb.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'"
@@ -3342,8 +3346,13 @@
         </div>
 
         <div>
+          <label class="block font-bold text-slate-700 mb-1">Maksimal Pengguna pada Waktu Sama / Beririsan (Orang) *</label>
+          <input type="number" min="1" max="500" x-model.number="labModal.data.max_capacity" required placeholder="Default: 40" class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:border-emerald-700" />
+          <p class="text-[11px] text-slate-500 mt-1">Batas akumulasi jumlah peserta apabila terdapat beberapa kegiatan di laboratorium dan jam yang beririsan (default 40 orang).</p>
+        </div>
+
+        <div>
           <label class="block font-bold text-slate-700 mb-1">Status *</label>
-          <select x-model="labModal.data.status" required class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:border-emerald-700">
             <option value="active">active (Aktif)</option>
             <option value="inactive">inactive (Nonaktif)</option>
           </select>
