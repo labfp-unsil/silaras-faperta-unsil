@@ -28,9 +28,13 @@ export function createMediaHelperMixin() {
     normalizeDriveImgUrl(url) {
           if (!url) return '';
           const s = String(url).trim();
-          const m = s.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || s.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+          if (s.startsWith('data:image')) return s;
+          const m =
+            s.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
+            s.match(/lh3\.googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/) ||
+            s.match(/[?&]id=([a-zA-Z0-9_-]+)/);
           if (m && m[1]) {
-            return 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1000';
+            return 'https://lh3.googleusercontent.com/d/' + m[1] + '=w1000';
           }
           return s;
         },
