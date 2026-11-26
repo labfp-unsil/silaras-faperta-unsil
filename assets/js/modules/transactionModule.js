@@ -320,12 +320,21 @@ export function createTransactionModule() {
           try {
             const res = await this.runGas('apiCreateRoomBooking', this.session.token, this.bookingForm);
             this.showToast(res.message);
-            this.bookingForm.activity_type = '';
-            this.bookingForm.activity_title = '';
-            this.bookingForm.participant_count = 1;
-            this.bookingForm.equipment_items = [];
-            this.bookingForm.material_items = [];
-            this.bookingForm.chemical_items = [];
+            const cleanUnitProdi = String(this.session?.unit_prodi || '').trim();
+            this.bookingForm = {
+              lab_id: '',
+              pic_name: this.session?.full_name || '',
+              unit_prodi: cleanUnitProdi === '-' ? '' : cleanUnitProdi,
+              activity_type: '',
+              activity_title: '',
+              booking_date: new Date().toISOString().slice(0, 10),
+              start_time: '08:00',
+              end_time: '10:00',
+              participant_count: 1,
+              equipment_items: [],
+              material_items: [],
+              chemical_items: [],
+            };
             await this.loadDashboard();
             if (typeof this.loadInventory === 'function' && ['inv_alat', 'inv_bahan', 'inv_kimia'].includes(this.activeMenu)) {
               await this.loadInventory(true);
