@@ -243,6 +243,7 @@ export function createTransactionModule() {
               const inp = ev.currentTarget.parentElement.querySelector('input[type="number"]');
               if (inp) inp.value = '1';
             }
+            this.catalogPickerModal.open = false;
             this.showToast(c.item_name + ' ditambahkan');
           }
         },
