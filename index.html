@@ -776,9 +776,9 @@
           <button type="button" x-show="canView('audit')" @click="navigate('audit')" :class="activeMenu === 'audit' ? 'bg-lime-400 text-emerald-950 font-bold' : 'text-emerald-100 hover:bg-emerald-800/60'" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl transition">
             <i class="fa-solid fa-shield-halved w-4"></i> Audit Trail
           </button>
-          <button type="button" x-show="canView('settings')" @click="navigate('settings')" :class="activeMenu === 'settings' ? 'bg-lime-400 text-emerald-950 font-bold' : 'text-emerald-100 hover:bg-emerald-800/60'" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl transition">
-            <i class="fa-solid fa-users-gear w-4"></i> Pengguna, Lab & Hak Akses
-          </button>
+          <button type="button" x-show="hasRole('Super Admin') && canView('settings')" @click="navigate('settings')" ...>
+			<i class="fa-solid fa-users-gear w-4"></i> Pengguna, Lab & Hak Akses
+		  </button>
         </div>
       </nav>
     </aside>
@@ -2471,7 +2471,7 @@
         </div>
 
         <!-- 8. PENGATURAN PENGGUNA, MASTER LOKASI LAB & HAK AKSES GRANULAR -->
-        <div x-show="activeMenu === 'settings'" class="space-y-6">
+        <div x-show="activeMenu === 'settings' && hasRole('Super Admin')" class="space-y-6">
           <div class="bg-white p-5 rounded-2xl border border-slate-200 space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div>
@@ -2611,21 +2611,21 @@
                         <input type="checkbox"
                                :checked="getRolePerm(selectedMatrixRole, mod.key, 'view')"
                                @change="toggleRolePerm(selectedMatrixRole, mod.key, 'view', $event.target.checked)"
-                               :disabled="selectedMatrixRole === 'Super Admin' && mod.key === 'settings'"
+                               :disabled="mod.key === 'settings'"
                                class="w-4 h-4 accent-emerald-800 rounded cursor-pointer" />
                       </td>
                       <td class="px-4 py-2.5 text-center">
                         <input type="checkbox"
                                :checked="getRolePerm(selectedMatrixRole, mod.key, 'edit')"
                                @change="toggleRolePerm(selectedMatrixRole, mod.key, 'edit', $event.target.checked)"
-                               :disabled="selectedMatrixRole === 'Super Admin' && mod.key === 'settings'"
+                               :disabled="mod.key === 'settings'"
                                class="w-4 h-4 accent-emerald-800 rounded cursor-pointer" />
                       </td>
                       <td class="px-4 py-2.5 text-center">
                         <input type="checkbox"
                                :checked="getRolePerm(selectedMatrixRole, mod.key, 'delete')"
                                @change="toggleRolePerm(selectedMatrixRole, mod.key, 'delete', $event.target.checked)"
-                               :disabled="selectedMatrixRole === 'Super Admin' && mod.key === 'settings'"
+                               :disabled="mod.key === 'settings'"
                                class="w-4 h-4 accent-emerald-800 rounded cursor-pointer" />
                       </td>
                     </tr>
