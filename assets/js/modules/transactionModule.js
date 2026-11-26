@@ -19,7 +19,19 @@ export function createTransactionModule() {
 
     usageForm: { category: 'Bahan', lab_id: '', usage_date: new Date().toISOString().slice(0,10), purpose: '', items: [] },
 
-    bookingForm: { lab_id: '', pic_name: '', unit_prodi: '', activity_type: 'Praktikum', activity_title: '', booking_date: new Date().toISOString().slice(0,10), start_time: '08:00', end_time: '10:00', participant_count: 20, equipment_items: [], material_items: [], chemical_items: [] },
+    bookingForm: { lab_id: '', pic_name: '', unit_prodi: '', activity_type: '', activity_title: '', booking_date: new Date().toISOString().slice(0,10), start_time: '08:00', end_time: '10:00', participant_count: 1, equipment_items: [], material_items: [], chemical_items: [] },
+
+    onBookingActivityTypeChange() {
+          if (this.bookingForm.activity_type === 'Praktikum') {
+            this.bookingForm.participant_count = 40;
+          } else {
+            this.bookingForm.material_items = [];
+            this.bookingForm.chemical_items = [];
+            if (Number(this.bookingForm.participant_count) === 40) {
+              this.bookingForm.participant_count = 1;
+            }
+          }
+        },
 
     setBookingTimePart(field, part, value) {
           const current = String(this.bookingForm[field] || '08:00');
@@ -284,18 +296,28 @@ export function createTransactionModule() {
             this.showToast('Silakan pilih lokasi laboratorium terlebih dahulu.', 'error');
             return;
           }
+          if (!this.bookingForm.activity_type || !String(this.bookingForm.activity_type).trim()) {
+            this.showToast('Silakan pilih jenis kegiatan terlebih dahulu.', 'error');
+            return;
+          }
           if (!this.bookingForm.activity_title || !String(this.bookingForm.activity_title).trim()) {
             this.showToast('Judul / tujuan kegiatan wajib diisi.', 'error');
             return;
           }
+          if (this.bookingForm.activity_type === 'Praktikum') {
+            this.bookingForm.participant_count = 40;
+          }
           const maxCap = this.getSelectedBookingLabMaxCapacity();
-          if (Number(this.bookingForm.participant_count || 0) > maxCap) {
+          if (this.bookingForm.activity_type !== 'Praktikum' && Number(this.bookingForm.participant_count || 0) > maxCap) {
             this.showToast(`Jumlah peserta maksimal untuk laboratorium ini adalah ${maxCap} orang.`, 'error');
             return;
           }
           try {
             const res = await this.runGas('apiCreateRoomBooking', this.session.token, this.bookingForm);
             this.showToast(res.message);
+            this.bookingForm.activity_type = '';
+            this.bookingForm.activity_title = '';
+            this.bookingForm.participant_count = 1;
             this.bookingForm.equipment_items = [];
             this.bookingForm.material_items = [];
             this.bookingForm.chemical_items = [];
