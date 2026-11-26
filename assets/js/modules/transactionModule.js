@@ -273,7 +273,26 @@ export function createTransactionModule() {
           } catch (e) { this.showToast(e.message, 'error'); }
         },
 
+    getSelectedBookingLabMaxCapacity() {
+          const found = (this.publicData?.labs || []).find((l) => l.lab_id === this.bookingForm?.lab_id);
+          const cap = Number(found?.max_capacity || 40);
+          return cap > 0 ? cap : 40;
+        },
+
     async submitBooking() {
+          if (!this.bookingForm.lab_id) {
+            this.showToast('Silakan pilih lokasi laboratorium terlebih dahulu.', 'error');
+            return;
+          }
+          if (!this.bookingForm.activity_title || !String(this.bookingForm.activity_title).trim()) {
+            this.showToast('Judul / tujuan kegiatan wajib diisi.', 'error');
+            return;
+          }
+          const maxCap = this.getSelectedBookingLabMaxCapacity();
+          if (Number(this.bookingForm.participant_count || 0) > maxCap) {
+            this.showToast(`Jumlah peserta maksimal untuk laboratorium ini adalah ${maxCap} orang.`, 'error');
+            return;
+          }
           try {
             const res = await this.runGas('apiCreateRoomBooking', this.session.token, this.bookingForm);
             this.showToast(res.message);
@@ -281,6 +300,9 @@ export function createTransactionModule() {
             this.bookingForm.material_items = [];
             this.bookingForm.chemical_items = [];
             await this.loadDashboard();
+            if (typeof this.loadInventory === 'function' && ['inv_alat', 'inv_bahan', 'inv_kimia'].includes(this.activeMenu)) {
+              await this.loadInventory(true);
+            }
             await this.loadPublicHome();
           } catch (e) { this.showToast(e.message, 'error'); }
         },
