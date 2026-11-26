@@ -269,6 +269,12 @@ export function createTransactionModule() {
           );
           this.showToast(targetItem.item_name + ' dihapus dari daftar');
         },
+		
+	formatLoanStatusLabel(status) {
+          const st = String(status || '').trim();
+          if (st === 'borrowed') return 'borrowed (disetujui Ka. Lab.)';
+          return st;
+        },	
 
     async submitLoan() {
           if (!this.loanForm.lab_id) {
