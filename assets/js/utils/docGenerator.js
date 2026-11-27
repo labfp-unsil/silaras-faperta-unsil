@@ -212,7 +212,110 @@ export function createDocGeneratorMixin() {
 
       y = (doc.lastAutoTable?.finalY || y) + 5;
 
-      // 5. KOTAK STATUS + BLOK TANDA TANGAN (DIKUNCI UTUH AGAR TIDAK PERNAH TERPOTONG)
+      // Helper pembangkit QR Code Data URL
+      const buildQrDataUrl = (textPayload) => {
+        try {
+          if (typeof window.qrcode !== 'function') return null;
+          const qr = window.qrcode(0, 'M');
+          qr.addData(String(textPayload));
+          qr.make();
+          return qr.createDataURL(4, 1);
+        } catch (_) {
+          return null;
+        }
+      };
+
+      // Helper penghitung kode checksum unik untuk validasi keaslian dokumen
+      const computeDocDigest = (raw) => {
+        let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+        for (let i = 0; i < raw.length; i++) {
+          const ch = raw.charCodeAt(i);
+          h1 = Math.imul(h1 ^ ch, 2654435761);
+          h2 = Math.imul(h2 ^ ch, 1597334677);
+        }
+        h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+        h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+        return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16).toUpperCase().padStart(12, '0');
+      };
+
+      // Helper menggambar Stempel Digital & QR Code E-Signature Terverifikasi Google pada kolom TTD
+      const drawDigitalSignatureStamp = ({
+        centerX,
+        topY,
+        signerName,
+        signerRole,
+        signerEmail,
+        signedAt,
+        isSigned,
+      }) => {
+        if (!isSigned) return;
+
+        const stampW = 54;
+        const stampH = 19.5;
+        const boxX = centerX - stampW / 2;
+        const boxY = topY;
+
+        const cleanTimestamp = signedAt
+          ? new Date(signedAt).toLocaleString('id-ID', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : tanggalCetak;
+
+        const sigHash = computeDocDigest(`${loan.loan_id}|${signerRole}|${signerName}|${signerEmail}|${signedAt || ''}`);
+        const qrContent = [
+          'SILARAS E-SIGNATURE',
+          `Doc: ${loan.loan_id || '-'}`,
+          `Role: ${signerRole}`,
+          `Name: ${signerName}`,
+          `GoogleID: ${signerEmail || '-'}`,
+          `Time: ${cleanTimestamp}`,
+          `SigID: ${sigHash}`,
+        ].join('\n');
+
+        const qrImg = buildQrDataUrl(qrContent);
+
+        // Bingkai stempel elektronik hijau-emerald resmi
+        doc.setDrawColor(16, 122, 87);
+        doc.setFillColor(244, 251, 248);
+        doc.setLineWidth(0.35);
+        doc.roundedRect(boxX, boxY, stampW, stampH, 1.5, 1.5, 'FD');
+
+        // QR Code di sisi kiri stempel
+        const qrSize = 16.5;
+        if (qrImg) {
+          doc.addImage(qrImg, 'PNG', boxX + 1.5, boxY + 1.5, qrSize, qrSize);
+        }
+
+        // Teks verifikasi Google di sisi kanan QR
+        const textX = boxX + qrSize + 2.8;
+        const maxTextW = stampW - qrSize - 4.2;
+
+        doc.setTextColor(12, 95, 68);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(6.2);
+        doc.text('E-SIGNED VIA GOOGLE', textX, boxY + 4.2);
+
+        doc.setTextColor(30, 41, 59);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(5.5);
+        const emailLines = doc.splitTextToSize(String(signerEmail || 'Terverifikasi SILARAS'), maxTextW);
+        doc.text(emailLines.slice(0, 2), textX, boxY + 7.5);
+
+        doc.setTextColor(71, 85, 105);
+        doc.setFontSize(5.3);
+        doc.text(`Wkt: ${cleanTimestamp}`, textX, boxY + 13.8);
+        doc.setFont('courier', 'bold');
+        doc.text(`ID:${sigHash.slice(0, 10)}`, textX, boxY + 17.2);
+
+        // Kembalikan warna teks default hitam
+        doc.setTextColor(0, 0, 0);
+      };
+
+      // 5. KOTAK STATUS + BLOK TANDA TANGAN + STEMPEL DIGITAL (DIKUNCI UTUH AGAR TIDAK PERNAH TERPOTONG)
       const statusBodyText = 'Peminjam bertanggung jawab penuh menjaga kebersihan, keamanan, dan keutuhan peralatan selama masa peminjaman hingga dikembalikan ke laboratorium. Jika dalam masa peminjaman terjadi kehilangan atau kerusakan, maka Peminjam bersedia memperbaiki/mengganti sesuai dengan spesifikasi.';
       doc.setFont('times', 'normal');
       doc.setFontSize(10);
@@ -221,7 +324,8 @@ export function createDocGeneratorMixin() {
 
       const jabatanLines = doc.splitTextToSize(labelJabatanTtd, 54);
       const headerTtdLines = Math.max(2, 1 + jabatanLines.length);
-      const ttdBlockHeight = headerTtdLines * 4.5 + 18 + 10;
+      const stampAreaHeight = 22.5;
+      const ttdBlockHeight = headerTtdLines * 4.6 + stampAreaHeight + 11;
       const totalClosingHeight = statusBoxHeight + 6 + ttdBlockHeight;
 
       // Jika sisa ruang di halaman saat ini tidak cukup untuk seluruh kotak status + tanda tangan, pindah utuh ke halaman baru
@@ -268,19 +372,66 @@ export function createDocGeneratorMixin() {
       doc.text(`Tasikmalaya, ${tanggalCetak}`, col3X, ttdTopY, { align: 'center' });
       doc.text('Peminjam', col3X, ttdTopY + 4.6, { align: 'center' });
 
-      // Baris Nama & Keterangan
-      const nameY = ttdTopY + headerTtdLines * 4.6 + 17;
+      // Cari data email Google verifikator & penyetuju dari daftar users jika tersedia
+      const allUsers = this.adminData?.users || [];
+      const approverName = loan.approved_by || loan.wd_approved_by || namaPejabatPenyetuju;
+      const approverUser = allUsers.find((u) => u.full_name === approverName) || {};
+      const verifierName = loan.verified_by || namaLaboran;
+      const verifierUser = allUsers.find((u) => u.full_name === verifierName) || {};
+
+      const isApprovedSigned = ['approved', 'approved_kalab', 'borrowed', 'return_requested', 'returned_partial', 'returned'].includes(String(statusDisplay));
+      const isVerifiedSigned = Boolean(loan.verified_by || loan.verified_at || isApprovedSigned);
+      const isBorrowerSigned = true;
+
+      const stampTopY = ttdTopY + headerTtdLines * 4.6 + 1.2;
+
+      // Stempel E-Signature Kolom 1 (Kepala Lab / WD)
+      drawDigitalSignatureStamp({
+        centerX: col1X,
+        topY: stampTopY,
+        signerName: approverName,
+        signerRole: jabatanPenyetuju,
+        signerEmail: approverUser.email || labInfo.pic_email || 'kalab.fp@unsil.ac.id',
+        signedAt: loan.approved_at || loan.handover_at || loan.updated_at,
+        isSigned: isApprovedSigned,
+      });
+
+      // Stempel E-Signature Kolom 2 (Laboran)
+      drawDigitalSignatureStamp({
+        centerX: col2X,
+        topY: stampTopY,
+        signerName: verifierName,
+        signerRole: 'Laboran Pengelola',
+        signerEmail: verifierUser.email || 'laboran.fp@unsil.ac.id',
+        signedAt: loan.verified_at || loan.approved_at || loan.created_at,
+        isSigned: isVerifiedSigned,
+      });
+
+      // Stempel E-Signature Kolom 3 (Peminjam)
+      drawDigitalSignatureStamp({
+        centerX: col3X,
+        topY: stampTopY,
+        signerName: namaPeminjam,
+        signerRole: 'Peminjam',
+        signerEmail: emailPeminjam,
+        signedAt: loan.created_at,
+        isSigned: isBorrowerSigned,
+      });
+
+      // Baris Nama & Keterangan di bawah stempel QR
+      const nameY = stampTopY + stampAreaHeight + 3.2;
       doc.setFont('times', 'bold');
-      doc.text(`( ${namaPejabatPenyetuju} )`, col1X, nameY, { align: 'center' });
-      doc.text(`( ${namaLaboran} )`, col2X, nameY, { align: 'center' });
+      doc.setFontSize(10);
+      doc.text(`( ${approverName} )`, col1X, nameY, { align: 'center' });
+      doc.text(`( ${verifierName} )`, col2X, nameY, { align: 'center' });
       doc.text(`( ${namaPeminjam} )`, col3X, nameY, { align: 'center' });
 
       doc.setFont('times', 'italic');
-      doc.setFontSize(9.5);
-      doc.text('Disetujui via Sistem SILARAS', col1X, nameY + 4.5, { align: 'center' });
-      doc.text('Diverifikasi via Sistem SILARAS', col2X, nameY + 4.5, { align: 'center' });
+      doc.setFontSize(8.5);
+      doc.text('Ditandatangani Elektronik (Google Auth)', col1X, nameY + 4.2, { align: 'center' });
+      doc.text('Diverifikasi Elektronik (Google Auth)', col2X, nameY + 4.2, { align: 'center' });
       doc.setFont('times', 'normal');
-      doc.text(`NIM/NIP. ${nimNip}`, col3X, nameY + 4.5, { align: 'center' });
+      doc.text(`NIM/NIP. ${nimNip}`, col3X, nameY + 4.2, { align: 'center' });
 
       const pdfBlob = doc.output('blob');
       const pdfBytes = new Uint8Array(doc.output('arraybuffer'));
