@@ -44,6 +44,32 @@ export function createTransactionModule() {
 
     catalogPickerModal: { open: false, category: 'Alat', target: '', search: '', items: [] },
 
+    borrowerDetailModal: {
+      open: false,
+      title: 'Detail Informasi Peminjam',
+      data: { full_name: '-', email: '-', nim_nip: '-', unit_prodi: '-', phone: '-' }
+    },
+
+    openBorrowerDetailModal(record, title = 'Detail Informasi Peminjam') {
+      const prof = record?.borrower_profile || record?.requester_profile || record?.pic_profile || {};
+      const fallbackName = record?.borrower_name || record?.requester_name || record?.pic_name || '-';
+      const fallbackUser = (this.adminData?.users || []).find(
+        (u) => u.user_id === record?.user_id || (u.full_name && u.full_name === fallbackName)
+      ) || {};
+
+      this.borrowerDetailModal = {
+        open: true,
+        title,
+        data: {
+          full_name: prof.full_name || fallbackUser.full_name || fallbackName || '-',
+          email: prof.email || fallbackUser.email || '-',
+          nim_nip: prof.nim_nip || fallbackUser.nim_nip || record?.pic_nim_nip || '-',
+          unit_prodi: prof.unit_prodi || fallbackUser.unit_prodi || record?.unit_prodi || '-',
+          phone: prof.phone || fallbackUser.phone || '-'
+        }
+      };
+    },
+
     filteredApprovalList(list) {
           const items = list || [];
           if (this.isSuperAdmin()) return items;
@@ -198,6 +224,7 @@ export function createTransactionModule() {
               item_name: c.item_name,
               qty,
               qty_requested: qty,
+              max_qty: baseAvail,
               unit: c.unit || 'Unit'
             });
           } else if (t === 'usage') {
@@ -243,9 +270,37 @@ export function createTransactionModule() {
               const inp = ev.currentTarget.parentElement.querySelector('input[type="number"]');
               if (inp) inp.value = '1';
             }
+            this.catalogPickerModal.open = false;
             this.showToast(c.item_name + ' ditambahkan');
           }
         },
+		
+	updateLoanItemQty(targetItem, rawVal) {
+          if (!targetItem) return;
+          const maxQty = Number(targetItem.max_qty || 0);
+          let val = Math.max(1, Math.round(Number(rawVal || 1)));
+          if (maxQty > 0 && val > maxQty) {
+            val = maxQty;
+            this.showToast('Jumlah maksimal tersedia untuk ' + targetItem.item_name + ' adalah ' + maxQty + ' ' + targetItem.unit, 'error');
+          }
+          targetItem.qty = val;
+          targetItem.qty_requested = val;
+        },
+
+    removeLoanItem(targetItem) {
+          if (!targetItem) return;
+          const key = targetItem.eq_inv_id || targetItem.item_id;
+          this.loanForm.items = this.loanForm.items.filter(
+            (x) => (x.eq_inv_id || x.item_id) !== key
+          );
+          this.showToast(targetItem.item_name + ' dihapus dari daftar');
+        },
+		
+	formatLoanStatusLabel(status) {
+          const st = String(status || '').trim();
+          if (st === 'borrowed') return 'borrowed (disetujui Ka. Lab.)';
+          return st;
+        },	
 
     async submitLoan() {
           if (!this.loanForm.lab_id) {

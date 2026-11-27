@@ -1851,10 +1851,23 @@
                 <i class="fa-solid fa-plus mr-1"></i> Pilih / Tambah Alat dari Katalog Lab
               </button>
               <div class="mt-3 space-y-2">
-                <template x-for="(it, idx) in loanForm.items" :key="idx">
-                  <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border text-xs">
-                    <span class="font-bold" x-text="it.item_name + ' (' + it.qty + ' ' + it.unit + ')'"></span>
-                    <button type="button" @click="loanForm.items.splice(idx, 1)" class="text-red-600 p-1"><i class="fa-solid fa-trash"></i></button>
+                <template x-for="it in loanForm.items" :key="it.eq_inv_id || it.item_id">
+                  <div class="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-slate-50 rounded-xl border text-xs">
+                    <div>
+                      <div class="font-bold text-slate-800" x-text="it.item_name"></div>
+                      <div class="text-[11px] text-slate-500" x-show="it.max_qty" x-text="'Maks. tersedia: ' + it.max_qty + ' ' + (it.unit || 'Unit')"></div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <label class="text-slate-600 font-semibold">Jumlah:</label>
+                      <input type="number" min="1" :max="it.max_qty || 9999" step="1"
+                        :value="it.qty"
+                        @change="updateLoanItemQty(it, $event.target.value)"
+                        class="w-20 px-2 py-1 border border-slate-300 rounded-lg text-center font-bold bg-white" />
+                      <span class="text-slate-600 font-semibold" x-text="it.unit || 'Unit'"></span>
+                      <button type="button" @click="removeLoanItem(it)" title="Hapus item ini" class="ml-1 px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 font-semibold">
+                        <i class="fa-solid fa-trash mr-1"></i> Hapus
+                      </button>
+                    </div>
                   </div>
                 </template>
               </div>
@@ -2197,8 +2210,14 @@
                     <template x-for="l in filteredApprovalList(dashData.loans)" :key="l.loan_id">
                       <tr>
                         <td class="px-3 py-2 font-mono font-bold" x-text="l.loan_id"></td>
-                        <td class="px-3 py-2 space-y-0.5">
-                          <div class="font-bold text-slate-900" x-text="l.borrower_name"></div>
+                        <td class="px-3 py-2">
+                          <button type="button"
+                                  @click="openBorrowerDetailModal(l, 'Detail Informasi Peminjam Alat')"
+                                  title="Klik untuk melihat detail profil peminjam"
+                                  class="font-bold text-emerald-900 hover:text-emerald-700 underline decoration-dotted underline-offset-2 text-left inline-flex items-center gap-1 cursor-pointer">
+                            <span x-text="l.borrower_name"></span>
+                            <i class="fa-solid fa-circle-info text-[11px] text-emerald-700"></i>
+                          </button>
                           <div class="text-slate-600" x-text="l.lab_name"></div>
                           <div class="text-[11px] text-emerald-800 font-medium" x-show="l.purpose">
                             <span class="font-bold">Tujuan:</span> <span x-text="l.purpose"></span>
@@ -2208,7 +2227,7 @@
                           </div>
                         </td>
                         <td class="px-3 py-2 space-y-0.5" x-html="renderLoanItemsHtml(l.items)"></td>
-                        <td class="px-3 py-2 font-bold" x-text="l.status"></td>
+                        <td class="px-3 py-2 font-bold" x-text="formatLoanStatusLabel(l.status)"></td>
                         <td class="px-3 py-2 text-[11px] text-slate-600 max-w-[200px]" x-text="getTransactionNotes(l)"></td>
                         <td class="px-3 py-2 space-x-1 space-y-1">
                           <!-- Aksi Laboran: Edit Item Alat & Verifikasi -->
@@ -2242,6 +2261,14 @@
                                   @click="cancelTransaction('loan', l.loan_id)"
                                   class="px-2.5 py-1 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-bold">
                             Batalkan
+                          </button>
+
+                          <!-- Unduh Dokumen Peminjaman (jika sudah disetujui Kepala Laboratorium) -->
+                          <button type="button" x-show="['borrowed','approved','approved_kalab','active_borrowed','returned_partial','return_requested','returned'].includes(l.status)"
+                                  @click="generateEquipmentLoanDoc(l)"
+                                  title="Unduh Formulir Peminjaman Peralatan (.doc)"
+                                  class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">
+                            <i class="fa-solid fa-file-word mr-1"></i>Unduh Dokumen
                           </button>
 
                           <!-- Aksi User Peminjam: Pengembalian -->
@@ -3728,6 +3755,58 @@
         </button>
       </div>
     </div>
+  </div>
+
+  <!-- MODAL DETAIL INFORMASI PEMINJAM / PEMOHON -->
+  <div x-show="borrowerDetailModal.open" x-cloak
+       @click.self="borrowerDetailModal.open = false"
+       class="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+            <i class="fa-solid fa-id-card"></i>
+          </div>
+          <h3 class="font-bold text-emerald-950 text-base" x-text="borrowerDetailModal.title"></h3>
+        </div>
+        <button type="button" @click="borrowerDetailModal.open = false" class="text-slate-400 hover:text-slate-700">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-2.5 text-xs">
+        <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+          <div class="text-[11px] text-slate-500">Nama Lengkap</div>
+          <div class="font-bold text-slate-900 text-sm mt-0.5" x-text="borrowerDetailModal.data.full_name || '-'"></div>
+        </div>
+        <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+          <div class="text-[11px] text-slate-500">Email</div>
+          <div class="font-semibold text-slate-800 mt-0.5 break-all" x-text="borrowerDetailModal.data.email || '-'"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-2.5">
+          <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+            <div class="text-[11px] text-slate-500">NIM / NIP</div>
+            <div class="font-bold text-slate-800 mt-0.5" x-text="borrowerDetailModal.data.nim_nip || '-'"></div>
+          </div>
+          <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+            <div class="text-[11px] text-slate-500">Nomor HP / WhatsApp</div>
+            <div class="font-bold text-slate-800 mt-0.5" x-text="borrowerDetailModal.data.phone || '-'"></div>
+          </div>
+        </div>
+        <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+          <div class="text-[11px] text-slate-500">Unit / Program Studi</div>
+          <div class="font-semibold text-slate-800 mt-0.5" x-text="borrowerDetailModal.data.unit_prodi || '-'"></div>
+        </div>
+      </div>
+
+      <div class="pt-1">
+        <button type="button" @click="borrowerDetailModal.open = false"
+                class="w-full py-2 rounded-xl bg-silaras-dark text-white font-bold text-xs hover:bg-emerald-900">
+          Tutup
+        </button>
+      </div>
+    </div>
+  </div>
   </div>
 
   <!-- Entry Point ES Module -->
