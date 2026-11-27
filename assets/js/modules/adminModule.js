@@ -6,7 +6,7 @@ export function createAdminModule() {
 
     userModal: { open: false, data: { roles: ['User'], assigned_labs: [], status: 'active' } },
 
-    labModal: { open: false, is_edit: false, data: { lab_id: '', lab_name: '', lab_position: '', description: '', approver_role: 'Kepala Laboratorium', pic_name: '', laboran_name: '', max_capacity: 40, status: 'active' } },
+    labModal: { open: false, is_edit: false, pic_name_kalab: '', pic_name_wd: '', data: { lab_id: '', lab_name: '', lab_position: '', description: '', approver_role: 'Kepala Laboratorium', pic_name: '', laboran_name: '', max_capacity: 40, status: 'active' } },
 
     selectedMatrixRole: 'Laboran',
 
@@ -204,16 +204,20 @@ export function createAdminModule() {
 
     openLabModal(lab) {
           if (lab) {
+            const role = lab.approver_role || 'Kepala Laboratorium';
+            const savedPic = lab.pic_name || '';
             this.labModal = {
               open: true,
               is_edit: true,
+              pic_name_kalab: role === 'Kepala Laboratorium' ? savedPic : '',
+              pic_name_wd: role === 'Wakil Dekan Bidang Akademik' ? savedPic : '',
               data: {
                 lab_id: lab.lab_id,
                 lab_name: lab.lab_name || '',
                 lab_position: lab.lab_position || lab.lab_code || '',
                 description: lab.description || '',
-                approver_role: lab.approver_role || 'Kepala Laboratorium',
-                pic_name: lab.pic_name || '',
+                approver_role: role,
+                pic_name: savedPic,
                 laboran_name: lab.laboran_name || '',
                 max_capacity: Number(lab.max_capacity || 40),
                 status: lab.status || 'active'
@@ -223,6 +227,8 @@ export function createAdminModule() {
             this.labModal = {
               open: true,
               is_edit: false,
+              pic_name_kalab: '',
+              pic_name_wd: '',
               data: {
                 lab_id: '',
                 lab_name: '',
@@ -235,6 +241,15 @@ export function createAdminModule() {
                 status: 'active'
               }
             };
+          }
+        },
+
+    onLabApproverRoleChange() {
+          const role = this.labModal.data.approver_role;
+          if (role === 'Wakil Dekan Bidang Akademik') {
+            this.labModal.data.pic_name = this.labModal.pic_name_wd || '';
+          } else {
+            this.labModal.data.pic_name = this.labModal.pic_name_kalab || '';
           }
         },
 
