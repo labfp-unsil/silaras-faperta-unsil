@@ -501,17 +501,36 @@ export function createTransactionModule() {
           }
         },
 
-    async userRequestReturn(loanId) {
-          const ok = await this.askConfirm(
-            'Ajukan pengembalian alat untuk transaksi peminjaman ini sekarang?',
-            'Konfirmasi Pengembalian Alat'
-          );
-          if (!ok) return;
-          try {
-            const res = await this.runGas('apiUserRequestReturn', this.session.token, loanId);
-            this.showToast(res.message || 'Permintaan pengembalian alat berhasil dikirim');
-            await this.loadWorkspaceBundle(true);
-          } catch (e) { this.showToast(e.message, 'error'); }
+    openUserReturnModal(loan) {
+          const items = this.uniqueLoanItems(loan.items || []);
+          const unreturned = items.filter((it) => it.return_status !== 'returned');
+          if (unreturned.length === 0) {
+            this.showToast('Seluruh item pada transaksi ini sudah dikembalikan.', 'error');
+            return;
+          }
+          this.returnAssessmentModal = {
+            open: true,
+            mode: 'user_request',
+            loanId: loan.loan_id,
+            borrowerName: loan.borrower_name || '',
+            labName: loan.lab_name || '',
+            notes: '',
+            items: items.map((it) => {
+              const alreadyReturned = it.return_status === 'returned';
+              return {
+                loan_item_id: it.loan_item_id,
+                eq_inv_id: it.eq_inv_id,
+                item_id: it.item_id,
+                item_name: it.item_name,
+                qty_requested: Number(it.qty_requested || 1),
+                already_returned: alreadyReturned,
+                return_status: it.return_status || '',
+                selected: !alreadyReturned, // Default pilih semua (sekaligus), bisa di-uncheck untuk per item
+                return_condition: it.return_condition || 'Baik',
+                condition_notes: '',
+              };
+            }),
+          };
         },
 
     canManageReturn() {
@@ -525,7 +544,12 @@ export function createTransactionModule() {
           return unique
             .map((it) => {
               const cond = it.return_condition || it.initial_condition || 'Baik';
-              return `<div>${esc(it.item_name)} (${Number(it.qty_requested || 0)}) [${esc(cond)}]</div>`;
+              const badge = it.return_status === 'returned'
+                ? ' <span class="text-[10px] font-bold text-emerald-700">(Sudah Kembali)</span>'
+                : it.return_status === 'return_requested'
+                  ? ' <span class="text-[10px] font-bold text-indigo-700">(Diajukan Kembali)</span>'
+                  : '';
+              return `<div>${esc(it.item_name)} (${Number(it.qty_requested || 0)}) [${esc(cond)}]${badge}</div>`;
             })
             .join('');
         },
@@ -547,7 +571,7 @@ export function createTransactionModule() {
           return parts.length > 0 ? parts.join(' | ') : '-';
         },
 
-    returnAssessmentModal: { open: false, loanId: '', borrowerName: '', labName: '', items: [], notes: '' },
+    returnAssessmentModal: { open: false, mode: 'staff_assess', loanId: '', borrowerName: '', labName: '', items: [], notes: '' },
 
     async openEditLoanItemsModal(loan) {
           let allEqs = Array.isArray(this.invCache?.Alat) && this.invCache.Alat.length > 0
@@ -601,32 +625,71 @@ export function createTransactionModule() {
           );
         },
 
+    toggleAllReturnItems(checked) {
+          (this.returnAssessmentModal.items || []).forEach((it) => {
+            if (!it.already_returned) it.selected = Boolean(checked);
+          });
+        },
+
     openReturnAssessmentModal(loan) {
           const items = this.uniqueLoanItems(loan.items || []);
           if (items.length === 0) return;
+          const hasRequestedItems = items.some((it) => it.return_status === 'return_requested');
           this.returnAssessmentModal = {
             open: true,
+            mode: 'staff_assess',
             loanId: loan.loan_id,
             borrowerName: loan.borrower_name || '',
             labName: loan.lab_name || '',
-            notes: '',
-            items: items.map((it) => ({
-              loan_item_id: it.loan_item_id,
-              eq_inv_id: it.eq_inv_id,
-              item_id: it.item_id,
-              item_name: it.item_name,
-              qty_requested: Number(it.qty_requested || 1),
-              return_condition: 'Baik',
-              condition_notes: '',
-            })),
+            notes: loan.return_notes || '',
+            items: items.map((it) => {
+              const alreadyReturned = it.return_status === 'returned';
+              const defaultChecked = !alreadyReturned && (hasRequestedItems ? it.return_status === 'return_requested' : true);
+              return {
+                loan_item_id: it.loan_item_id,
+                eq_inv_id: it.eq_inv_id,
+                item_id: it.item_id,
+                item_name: it.item_name,
+                qty_requested: Number(it.qty_requested || 1),
+                already_returned: alreadyReturned,
+                return_status: it.return_status || '',
+                selected: defaultChecked,
+                return_condition: it.return_condition || 'Baik',
+                condition_notes: it.condition_notes || '',
+              };
+            }),
           };
         },
 
     async submitReturnAssessmentModal() {
           const modal = this.returnAssessmentModal;
           if (!modal.loanId || modal.items.length === 0) return;
+          const selectedItems = modal.items.filter((it) => !it.already_returned && it.selected);
+          if (selectedItems.length === 0) {
+            this.showToast('Pilih minimal 1 item alat yang akan dikembalikan.', 'error');
+            return;
+          }
+
           try {
-            const payloadItems = modal.items.map((it) => ({
+            if (modal.mode === 'user_request') {
+              const reqItems = selectedItems.map((it) => ({
+                loan_item_id: it.loan_item_id,
+                item_id: it.item_id,
+              }));
+              const res = await this.runGas(
+                'apiUserRequestReturn',
+                this.session.token,
+                modal.loanId,
+                reqItems,
+                modal.notes || ''
+              );
+              this.showToast(res.message || 'Permintaan pengembalian alat berhasil dikirim');
+              this.returnAssessmentModal.open = false;
+              await this.loadWorkspaceBundle(true);
+              return;
+            }
+
+            const payloadItems = selectedItems.map((it) => ({
               loan_item_id: it.loan_item_id,
               eq_inv_id: it.eq_inv_id,
               item_id: it.item_id,
