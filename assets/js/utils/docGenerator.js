@@ -2,6 +2,13 @@ export function createDocGeneratorMixin() {
   return {
     generateEquipmentLoanDoc(loan) {
           if (!loan) return;
+          const now = Date.now();
+          const lockKey = String(loan.loan_id || 'SILARAS');
+          if (this._lastLoanDocKey === lockKey && now - (this._lastLoanDocTime || 0) < 1200) {
+            return;
+          }
+          this._lastLoanDocKey = lockKey;
+          this._lastLoanDocTime = now;
           const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
           const formatDateIndo = (ymd) => {
             const raw = String(ymd || '').slice(0, 10);
@@ -140,10 +147,13 @@ export function createDocGeneratorMixin() {
           const a = document.createElement('a');
           a.href = url;
           a.download = `Formulir_Peminjaman_${loan.loan_id || 'SILARAS'}.doc`;
+          a.style.display = 'none';
           document.body.appendChild(a);
           a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
+          setTimeout(() => {
+            if (a.parentNode) document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }, 1500);
           this.showToast('Dokumen Peminjaman Peralatan (.doc) berhasil diunduh');
         },
 
