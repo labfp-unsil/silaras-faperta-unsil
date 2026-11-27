@@ -3390,7 +3390,7 @@
 
         <div>
           <label class="block font-bold text-slate-700 mb-1">Jabatan Pejabat Penyetuju Dokumen *</label>
-          <select x-model="labModal.data.approver_role" required class="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white focus:outline-none focus:border-emerald-700">
+          <select x-model="labModal.data.approver_role" @change="onLabApproverRoleChange()" required class="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white focus:outline-none focus:border-emerald-700">
             <option value="Kepala Laboratorium">Kepala Laboratorium</option>
             <option value="Wakil Dekan Bidang Akademik">Wakil Dekan Bidang Akademik</option>
           </select>
@@ -3399,7 +3399,12 @@
 
         <div>
           <label class="block font-bold text-slate-700 mb-1" x-text="'Nama ' + (labModal.data.approver_role || 'Kepala Laboratorium') + ' *'"></label>
-          <input type="text" x-model="labModal.data.pic_name" required placeholder="Nama lengkap pejabat beserta gelar" class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:border-emerald-700" />
+          <input type="text"
+                 x-model="labModal.data.pic_name"
+                 @input="labModal.data.approver_role === 'Wakil Dekan Bidang Akademik' ? (labModal.pic_name_wd = labModal.data.pic_name) : (labModal.pic_name_kalab = labModal.data.pic_name)"
+                 required
+                 :placeholder="labModal.data.approver_role === 'Wakil Dekan Bidang Akademik' ? 'Nama lengkap Wakil Dekan Bidang Akademik beserta gelar' : 'Nama lengkap Kepala Laboratorium beserta gelar'"
+                 class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:border-emerald-700" />
         </div>
 
         <div>
