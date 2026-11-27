@@ -11,11 +11,14 @@ export function createDocGeneratorMixin() {
           el.onerror = reject;
           el.src = logoUrl;
         });
+        const targetRes = 600; // Resolusi tinggi (~508 DPI untuk ukuran cetak 3 x 3 cm)
         const canvas = document.createElement('canvas');
-        canvas.width = 88;
-        canvas.height = 88;
+        canvas.width = targetRes;
+        canvas.height = targetRes;
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, 88, 88);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, targetRes, targetRes);
         this._unsilLogoDataUrl = canvas.toDataURL('image/png');
         return this._unsilLogoDataUrl;
       } catch (_) {
@@ -112,9 +115,10 @@ export function createDocGeneratorMixin() {
         </head>
         <body>
           <table class="kop-table">
+            <table class="kop-table">
             <tr>
-              <td style="width: 92px; text-align: center;">
-                <img src="${logoSrc}" width="84" height="84" alt="Logo UNSIL" />
+              <td style="width: 3.4cm; text-align: center; vertical-align: middle;">
+                <img src="${logoSrc}" width="113" height="113" style="width: 3cm; height: 3cm;" alt="Logo UNSIL" />
               </td>
               <td class="kop-text">
                 <p class="kop-kementerian">KEMENTERIAN PENDIDIKAN TINGGI,<br/>SAINS, DAN TEKNOLOGI</p>
