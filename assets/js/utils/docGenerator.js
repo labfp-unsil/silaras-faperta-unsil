@@ -266,15 +266,10 @@ export function createDocGeneratorMixin() {
           : tanggalCetak;
 
         const sigHash = computeDocDigest(`${loan.loan_id}|${signerRole}|${signerName}|${signerEmail}|${signedAt || ''}`);
-        const qrContent = [
-          'SILARAS E-SIGNATURE',
-          `Doc: ${loan.loan_id || '-'}`,
-          `Role: ${signerRole}`,
-          `Name: ${signerName}`,
-          `GoogleID: ${signerEmail || '-'}`,
-          `Time: ${cleanTimestamp}`,
-          `SigID: ${sigHash}`,
-        ].join('\n');
+        const verifyUrl = new URL(window.location.origin + window.location.pathname);
+        verifyUrl.searchParams.set('verify_doc', String(loan.loan_id || ''));
+        verifyUrl.searchParams.set('sig', sigHash.slice(0, 10));
+        const qrContent = verifyUrl.toString();
 
         const qrImg = buildQrDataUrl(qrContent);
 
