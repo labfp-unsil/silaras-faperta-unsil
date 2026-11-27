@@ -79,7 +79,27 @@
             <i class="fa-solid fa-qrcode"></i> Verifikasi Dokumen
           </button>
         </nav>
-...
+
+        <div class="flex items-center gap-2">
+          <button type="button" @click="openAuthModal('login')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-white text-emerald-950 hover:bg-emerald-50 transition">
+            <i class="fa-solid fa-right-to-bracket mr-1"></i> Login
+          </button>
+          <button type="button" @click="openAuthModal('register')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-silaras-lime text-emerald-950 hover:brightness-95 transition">
+            Daftar
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <section class="bg-gradient-to-br from-emerald-950 via-emerald-900 to-emerald-800 text-white py-16 px-4">
+      <div class="max-w-7xl mx-auto">
+        <div class="max-w-3xl space-y-5">
+          <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight">
+            Sistem Informasi Laboratorium Siliwangi (<span class="text-lime-400">SILARAS</span>)
+          </h1>
+          <p class="text-emerald-100 text-base sm:text-lg leading-relaxed">
+            Pusat informasi terpadu layanan praktikum, penelitian, katalog peralatan publik, dan jadwal penggunaan laboratorium Fakultas Pertanian Universitas Siliwangi.
+          </p>
           <div class="flex flex-wrap gap-3 pt-2">
             <a href="#katalog-publik" class="px-5 py-3 rounded-xl bg-silaras-lime text-emerald-950 font-bold text-sm hover:brightness-95 transition">
               <i class="fa-solid fa-microscope mr-2"></i>Jelajahi Katalog Alat
