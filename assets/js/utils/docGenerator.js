@@ -283,7 +283,12 @@ export function createDocGeneratorMixin() {
       doc.text(`NIM/NIP. ${nimNip}`, col3X, nameY + 4.5, { align: 'center' });
 
       const pdfBlob = doc.output('blob');
-      const base64DataUrl = doc.output('datauristring');
+      const pdfBytes = new Uint8Array(doc.output('arraybuffer'));
+      let binary = '';
+      for (let i = 0; i < pdfBytes.length; i++) {
+        binary += String.fromCharCode(pdfBytes[i]);
+      }
+      const base64DataUrl = 'data:application/pdf;base64,' + btoa(binary);
       const fileName = `Formulir_Peminjaman_${loan.loan_id || 'SILARAS'}.pdf`;
       return { pdfBlob, base64DataUrl, fileName };
     },
