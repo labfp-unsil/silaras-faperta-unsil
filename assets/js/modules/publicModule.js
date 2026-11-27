@@ -156,9 +156,9 @@ export function createPublicModule() {
             return 'bg-[#84CC16] text-emerald-950';
           }
           return 'bg-[#0284C7] text-white';
-        }
-		
-	verifyModal: {
+        },
+
+    verifyModal: {
       open: false,
       tab: 'manual', // 'manual' | 'camera'
       loanId: '',
