@@ -265,9 +265,14 @@ export function createDocGeneratorMixin() {
             })
           : tanggalCetak;
 
-        const sigHash = computeDocDigest(`${loan.loan_id}|${signerRole}|${signerName}|${signerEmail}|${signedAt || ''}`);
+        const normLoanId = String(loan.loan_id || '').trim().toUpperCase();
+        const normRole = String(signerRole || '').trim().toLowerCase();
+        const normName = String(signerName || '').trim().toLowerCase();
+        const normEmail = String(signerEmail || '').trim().toLowerCase();
+        const sigHash = computeDocDigest(`${normLoanId}|${normRole}|${normName}|${normEmail}`);
+
         const verifyUrl = new URL(window.location.origin + window.location.pathname);
-        verifyUrl.searchParams.set('verify_doc', String(loan.loan_id || ''));
+        verifyUrl.searchParams.set('verify_doc', normLoanId);
         verifyUrl.searchParams.set('sig', sigHash.slice(0, 10));
         const qrContent = verifyUrl.toString();
 
