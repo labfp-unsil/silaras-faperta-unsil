@@ -2279,21 +2279,21 @@
                             <span x-text="l.loan_doc_url ? 'Dokumen Drive' : 'Unduh Dokumen'"></span>
                           </button>
 
-                          <!-- Aksi User Peminjam: Pengembalian -->
+                          <!-- Aksi User Peminjam: Pengembalian (Bisa Per Item atau Sekaligus) -->
                           <button type="button" x-show="['borrowed','approved','active_borrowed','returned_partial'].includes(l.status) && l.user_id === session?.user_id"
-                                  @click="userRequestReturn(l.loan_id)"
+                                  @click="openUserReturnModal(l)"
                                   class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold">
                             <i class="fa-solid fa-rotate-left mr-1"></i>Pengembalian
                           </button>
 
-                          <!-- Khusus Super Admin, Kepala Lab & Laboran: Dikembalikan (langsung kembalikan stok & nilai kondisi per item) -->
+                          <!-- Khusus Super Admin, Kepala Lab & Laboran: Dikembalikan (Bisa Per Item atau Sekaligus) -->
                           <button type="button" x-show="['borrowed','approved','active_borrowed','returned_partial'].includes(l.status) && canManageReturn()"
                                   @click="openReturnAssessmentModal(l)"
                                   class="px-2.5 py-1 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-bold">
                             <i class="fa-solid fa-box-open mr-1"></i>Dikembalikan
                           </button>
 
-                          <!-- Aksi Laboran & Kepala Lab: Diterima (setelah user klik Pengembalian) -->
+                          <!-- Aksi Laboran & Kepala Lab: Diterima (setelah user mengajukan Pengembalian) -->
                           <button type="button" x-show="l.status === 'return_requested' && canManageReturn()"
                                   @click="openReturnAssessmentModal(l)"
                                   class="px-2.5 py-1 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg font-bold">
@@ -3728,12 +3728,13 @@
   </div>
   </div>
 
-  <!-- MODAL PENILAIAN PENGEMBALIAN ALAT PER ITEM -->
+  <!-- MODAL PENGEMBALIAN ALAT (MENDUKUNG PER ITEM MAUPUN SEKALIGUS UNTUK USER & STAF LAB) -->
   <div x-show="returnAssessmentModal.open" x-cloak class="fixed inset-0 z-[70] bg-slate-900/60 flex items-center justify-center p-4 overflow-y-auto">
     <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 my-8">
       <div class="flex justify-between items-center border-b border-slate-100 pb-3">
         <div>
-          <h3 class="font-bold text-base text-emerald-950" x-text="'Konfirmasi Pengembalian Alat (' + returnAssessmentModal.loanId + ')'"></h3>
+          <h3 class="font-bold text-base text-emerald-950"
+              x-text="(returnAssessmentModal.mode === 'user_request' ? 'Ajukan Pengembalian Alat (' : 'Konfirmasi Pengembalian Alat (') + returnAssessmentModal.loanId + ')'"></h3>
           <p class="text-[11px] text-slate-500">
             Peminjam: <b x-text="returnAssessmentModal.borrowerName"></b> &bull; Lokasi: <b x-text="returnAssessmentModal.labName"></b>
           </p>
@@ -3743,29 +3744,57 @@
         </button>
       </div>
 
-      <div class="space-y-2.5 max-h-[52vh] overflow-y-auto pr-1 text-xs">
+      <!-- Bar Kontrol Pilih Sekaligus atau Per Item -->
+      <div class="flex flex-wrap items-center justify-between gap-2 bg-emerald-50/70 border border-emerald-200 rounded-xl px-3 py-2 text-xs">
+        <span class="text-emerald-950 font-medium">
+          Centang item yang dikembalikan sekarang (bisa <b>per item</b> atau <b>sekaligus</b>):
+        </span>
+        <div class="flex items-center gap-1.5">
+          <button type="button" @click="toggleAllReturnItems(true)"
+                  class="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[11px]">
+            Pilih Semua (Sekaligus)
+          </button>
+          <button type="button" @click="toggleAllReturnItems(false)"
+                  class="px-2.5 py-1 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-semibold text-[11px]">
+            Kosongkan Pilihan
+          </button>
+        </div>
+      </div>
+
+      <div class="space-y-2.5 max-h-[50vh] overflow-y-auto pr-1 text-xs">
         <template x-for="(it, idx) in returnAssessmentModal.items" :key="it.loan_item_id || idx">
-          <div class="grid grid-cols-12 gap-2.5 items-center bg-slate-50 p-3 rounded-xl border border-slate-200">
-            <div class="col-span-12 sm:col-span-5">
+          <div class="grid grid-cols-12 gap-2.5 items-center p-3 rounded-xl border"
+               :class="it.already_returned ? 'bg-slate-100/80 border-slate-200 opacity-65' : (it.selected ? 'bg-slate-50 border-emerald-300' : 'bg-white border-slate-200')">
+            <div class="col-span-1 flex justify-center">
+              <input type="checkbox"
+                     x-model="it.selected"
+                     :disabled="it.already_returned"
+                     class="w-4 h-4 accent-emerald-700 rounded cursor-pointer" />
+            </div>
+            <div class="col-span-11" :class="returnAssessmentModal.mode === 'staff_assess' ? 'sm:col-span-4' : 'sm:col-span-11'">
               <p class="font-bold text-slate-900" x-text="it.item_name"></p>
               <p class="text-[11px] text-slate-500">
-                Jumlah Kembali: <b class="text-emerald-800" x-text="it.qty_requested + ' Unit'"></b>
+                Jumlah: <b class="text-emerald-800" x-text="it.qty_requested + ' Unit'"></b>
+                <span x-show="it.already_returned" class="ml-1.5 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">Sudah Dikembalikan</span>
+                <span x-show="!it.already_returned && it.return_status === 'return_requested'" class="ml-1.5 px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 font-bold text-[10px]">Diajukan User</span>
               </p>
             </div>
-            <div class="col-span-5 sm:col-span-3">
+            <div class="col-span-5 sm:col-span-3" x-show="returnAssessmentModal.mode === 'staff_assess'">
               <label class="block text-[10px] font-bold text-slate-500 mb-0.5">Kondisi Kembali *</label>
-              <select x-model="it.return_condition" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-semibold">
+              <select x-model="it.return_condition" :disabled="it.already_returned || !it.selected"
+                      class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-semibold disabled:bg-slate-100">
                 <option value="Baik">Baik</option>
                 <option value="Rusak Ringan">Rusak Ringan</option>
                 <option value="Rusak Berat">Rusak Berat</option>
               </select>
             </div>
-            <div class="col-span-7 sm:col-span-4">
+            <div class="col-span-7 sm:col-span-4" x-show="returnAssessmentModal.mode === 'staff_assess'">
               <label class="block text-[10px] font-bold text-slate-500 mb-0.5">Catatan Item (Opsional)</label>
               <input type="text"
                      x-model="it.condition_notes"
+                     :disabled="it.already_returned || !it.selected"
                      placeholder="Catatan kondisi per item..."
-                     class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white" />
+                     class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white disabled:bg-slate-100" />
             </div>
           </div>
         </template>
@@ -3784,7 +3813,8 @@
           Batal
         </button>
         <button type="button" @click="submitReturnAssessmentModal()" class="px-4 py-2 rounded-xl bg-silaras-dark text-white text-xs font-bold hover:bg-emerald-900">
-          <i class="fa-solid fa-clipboard-check mr-1"></i> Simpan & Terima Pengembalian
+          <i class="fa-solid fa-clipboard-check mr-1"></i>
+          <span x-text="returnAssessmentModal.mode === 'user_request' ? 'Kirim Pengajuan Pengembalian' : 'Simpan & Terima Pengembalian'"></span>
         </button>
       </div>
     </div>
