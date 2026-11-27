@@ -2263,12 +2263,14 @@
                             Batalkan
                           </button>
 
-                          <!-- Unduh Dokumen Peminjaman (jika sudah disetujui Kepala Laboratorium) -->
+                          <!-- Unduh / Buka Arsip Dokumen Peminjaman dari Google Drive (jika sudah disetujui Kepala Laboratorium) -->
                           <button type="button" x-show="['borrowed','approved','approved_kalab','active_borrowed','returned_partial','return_requested','returned'].includes(l.status)"
                                   @click.stop.prevent="generateEquipmentLoanDoc(l)"
-                                  title="Unduh Formulir Peminjaman Peralatan (.doc)"
+                                  :title="l.loan_doc_url ? 'Buka & Unduh Dokumen Arsip Google Drive (.doc)' : 'Unduh Formulir Peminjaman Peralatan (.doc)'"
                                   class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">
-                            <i class="fa-solid fa-file-word mr-1"></i>Unduh Dokumen
+                            <i class="fa-brands fa-google-drive mr-1" x-show="l.loan_doc_url"></i>
+                            <i class="fa-solid fa-file-word mr-1" x-show="!l.loan_doc_url"></i>
+                            <span x-text="l.loan_doc_url ? 'Dokumen Drive' : 'Unduh Dokumen'"></span>
                           </button>
 
                           <!-- Aksi User Peminjam: Pengembalian -->
