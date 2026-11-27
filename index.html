@@ -2265,7 +2265,7 @@
 
                           <!-- Unduh Dokumen Peminjaman (jika sudah disetujui Kepala Laboratorium) -->
                           <button type="button" x-show="['borrowed','approved','approved_kalab','active_borrowed','returned_partial','return_requested','returned'].includes(l.status)"
-                                  @click="generateEquipmentLoanDoc(l)"
+                                  @click.stop.prevent="generateEquipmentLoanDoc(l)"
                                   title="Unduh Formulir Peminjaman Peralatan (.doc)"
                                   class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">
                             <i class="fa-solid fa-file-word mr-1"></i>Unduh Dokumen
