@@ -414,6 +414,22 @@ export function createTransactionModule() {
           try {
             const fn = type === 'booking' ? 'apiProcessRoomBookingStep' : (type === 'loan' ? 'apiProcessLoanStep' : 'apiProcessUsageStep');
             const res = await this.runGas(fn, this.session.token, id, step, reason);
+
+            if (type === 'loan' && step === 'approve_kalab') {
+              try {
+                const loanObj = (this.dashData?.loans || []).find((x) => x.loan_id === id);
+                if (loanObj && typeof this.buildEquipmentLoanDocPayload === 'function') {
+                  const docPayload = this.buildEquipmentLoanDocPayload({ ...loanObj, status: res.status || 'borrowed' });
+                  if (docPayload?.base64DataUrl) {
+                    await this.runGas('apiAttachLoanDocument', this.session.token, id, docPayload.base64DataUrl, docPayload.fileName);
+                  }
+                }
+              } catch (docErr) {
+                console.warn('Arsip otomatis ke Google Drive gagal:', docErr);
+                this.showToast('Peminjaman disetujui, namun arsip otomatis ke Google Drive gagal: ' + docErr.message, 'error');
+              }
+            }
+
             this.showToast(res.message || 'Status permohonan berhasil diperbarui');
             await this.loadWorkspaceBundle(true);
             await this.loadPublicHome();
