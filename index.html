@@ -3771,15 +3771,40 @@
                      :disabled="it.already_returned"
                      class="w-4 h-4 accent-emerald-700 rounded cursor-pointer" />
             </div>
-            <div class="col-span-11" :class="returnAssessmentModal.mode === 'staff_assess' ? 'sm:col-span-4' : 'sm:col-span-11'">
+            <div class="col-span-11" :class="returnAssessmentModal.mode === 'staff_assess' ? 'sm:col-span-3' : 'sm:col-span-7'">
               <p class="font-bold text-slate-900" x-text="it.item_name"></p>
               <p class="text-[11px] text-slate-500">
-                Jumlah: <b class="text-emerald-800" x-text="it.qty_requested + ' Unit'"></b>
-                <span x-show="it.already_returned" class="ml-1.5 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">Sudah Dikembalikan</span>
-                <span x-show="!it.already_returned && it.return_status === 'return_requested'" class="ml-1.5 px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 font-bold text-[10px]">Diajukan User</span>
+                Pinjam: <b class="text-slate-700" x-text="it.qty_requested + ' Unit'"></b>
+                <span x-show="it.qty_already_returned > 0 && !it.already_returned" class="text-amber-700 font-semibold"
+                      x-text="' (Sisa: ' + it.qty_remaining + ')'"></span>
               </p>
+              <div class="mt-0.5">
+                <span x-show="it.already_returned" class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">Sudah Dikembalikan</span>
+                <span x-show="!it.already_returned && it.return_status === 'return_requested'" class="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 font-bold text-[10px]">Diajukan User</span>
+              </div>
             </div>
-            <div class="col-span-5 sm:col-span-3" x-show="returnAssessmentModal.mode === 'staff_assess'">
+
+            <!-- Input Jumlah Dikembalikan per Item -->
+            <div class="col-span-4" :class="returnAssessmentModal.mode === 'staff_assess' ? 'sm:col-span-2' : 'sm:col-span-4'">
+              <label class="block text-[10px] font-bold text-slate-500 mb-0.5">Jml Kembali *</label>
+              <div class="flex items-center gap-1">
+                <input type="number"
+                       min="1"
+                       :max="it.qty_remaining"
+                       x-model.number="it.qty_to_return"
+                       :disabled="it.already_returned || !it.selected"
+                       class="w-full px-2 py-1.5 border border-slate-300 rounded-lg bg-white font-bold text-center text-emerald-900 disabled:bg-slate-100" />
+                <button type="button"
+                        x-show="!it.already_returned && it.selected && it.qty_to_return !== it.qty_remaining"
+                        @click="it.qty_to_return = it.qty_remaining"
+                        :title="'Kembalikan semua sisa (' + it.qty_remaining + ' unit)'"
+                        class="px-1.5 py-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold text-[10px] shrink-0">
+                  Max
+                </button>
+              </div>
+            </div>
+
+            <div class="col-span-4 sm:col-span-3" x-show="returnAssessmentModal.mode === 'staff_assess'">
               <label class="block text-[10px] font-bold text-slate-500 mb-0.5">Kondisi Kembali *</label>
               <select x-model="it.return_condition" :disabled="it.already_returned || !it.selected"
                       class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-semibold disabled:bg-slate-100">
@@ -3788,12 +3813,12 @@
                 <option value="Rusak Berat">Rusak Berat</option>
               </select>
             </div>
-            <div class="col-span-7 sm:col-span-4" x-show="returnAssessmentModal.mode === 'staff_assess'">
+            <div class="col-span-4 sm:col-span-3" x-show="returnAssessmentModal.mode === 'staff_assess'">
               <label class="block text-[10px] font-bold text-slate-500 mb-0.5">Catatan Item (Opsional)</label>
               <input type="text"
                      x-model="it.condition_notes"
                      :disabled="it.already_returned || !it.selected"
-                     placeholder="Catatan kondisi per item..."
+                     placeholder="Catatan item..."
                      class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white disabled:bg-slate-100" />
             </div>
           </div>
