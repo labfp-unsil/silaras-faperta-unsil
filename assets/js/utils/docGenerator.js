@@ -28,6 +28,11 @@ export function createDocGeneratorMixin() {
 
     async buildEquipmentLoanDocPayload(loan) {
       if (!loan) return null;
+      const jsPDF = window.jspdf?.jsPDF;
+      if (!jsPDF) {
+        throw new Error('Pustaka jsPDF belum dimuat. Muat ulang halaman dan coba lagi.');
+      }
+
       const logoSrc = await this.getUnsilLogoDataUrl();
       const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
       const formatDateIndo = (ymd) => {
@@ -69,149 +74,218 @@ export function createDocGeneratorMixin() {
         ? this.uniqueLoanItems(loan.items || [])
         : (loan.items || []);
 
-      const rowsHtml = itemsList.length > 0
-        ? itemsList.map((it, idx) => {
-            const qty = Number(it.qty_requested ?? it.qty ?? 0);
-            const unit = it.unit || 'Unit';
-            const kondisi = it.condition_before || it.condition_status || 'Baik';
-            return `
-              <tr>
-                <td style="text-align:center;">${idx + 1}</td>
-                <td>${it.item_id || '-'}</td>
-                <td><b>${it.item_name || '-'}</b></td>
-                <td style="text-align:center;">${qty} ${unit}</td>
-                <td style="text-align:center;">${kondisi}</td>
-              </tr>
-            `;
-          }).join('')
-        : `<tr><td colspan="5" style="text-align:center;">Tidak ada rincian peralatan.</td></tr>`;
-
       const statusDisplay = (!loan.status || ['pending_verification', 'verified_laboran'].includes(loan.status))
         ? 'borrowed'
         : loan.status;
 
-      const htmlDoc = `
-        <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-        <head><meta charset='utf-8'><title>Formulir Peminjaman Peralatan Laboratorium - ${loan.loan_id || ''}</title>
-        <style>
-          @page { size: A4; margin: 1.5cm 1.8cm 1.5cm 1.8cm; }
-          body { font-family: 'Times New Roman', serif; font-size: 11.5pt; line-height: 1.38; margin: 0; color: #000; }
-          table.kop-table { width: 100%; border-collapse: collapse; border-bottom: 3px double #000; margin-bottom: 14px; }
-          table.kop-table td { vertical-align: middle; padding-bottom: 8px; }
-          .kop-text { text-align: center; }
-          .kop-kementerian { font-size: 12pt; font-weight: bold; margin: 0; letter-spacing: 0.2px; }
-          .kop-univ { font-size: 14pt; font-weight: bold; margin: 1px 0; }
-          .kop-fak { font-size: 13pt; font-weight: bold; margin: 1px 0 3px 0; }
-          .kop-alamat { font-size: 9pt; margin: 0; line-height: 1.25; }
-          .title { text-align: center; font-weight: bold; text-decoration: underline; margin: 12px 0 2px 0; font-size: 12.5pt; }
-          .nomor { text-align: center; margin-bottom: 14px; font-size: 11pt; }
-          p.intro { margin: 8px 0 6px 0; }
-          table.info { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 11pt; }
-          table.info td { padding: 2.5px 4px; vertical-align: top; }
-          table.data { width: 100%; border-collapse: collapse; margin: 8px 0 12px 0; }
-          table.data thead { display: table-header-group; }
-          table.data tr { page-break-inside: avoid; break-inside: avoid; }
-          table.data th, table.data td { border: 1px solid #000; padding: 5px 8px; text-align: left; font-size: 10.5pt; }
-          table.data th { background-color: #f0f0f0; text-align: center; font-weight: bold; }
-          .closing-block { page-break-inside: avoid; break-inside: avoid; }
-          .status-box { border: 1px solid #000; background-color: #f8fafc; padding: 8px 10px; margin: 10px 0 16px 0; font-size: 10.5pt; text-align: justify; page-break-inside: avoid; break-inside: avoid; }
-          table.ttd { width: 100%; margin-top: 12px; text-align: center; font-size: 10.5pt; page-break-inside: avoid; break-inside: avoid; }
-          table.ttd tr { page-break-inside: avoid; break-inside: avoid; }
-          table.ttd td { width: 33.3%; vertical-align: top; padding: 0 4px; }
-        </style>
-        </head>
-        <body>
-          <table class="kop-table">
-            <table class="kop-table">
-            <tr>
-              <td style="width: 3.4cm; text-align: center; vertical-align: middle;">
-                <img src="${logoSrc}" width="113" height="113" style="width: 3cm; height: 3cm;" alt="Logo UNSIL" />
-              </td>
-              <td class="kop-text">
-                <p class="kop-kementerian">KEMENTERIAN PENDIDIKAN TINGGI,<br/>SAINS, DAN TEKNOLOGI</p>
-                <p class="kop-univ">UNIVERSITAS SILIWANGI</p>
-                <p class="kop-fak">FAKULTAS PERTANIAN</p>
-                <p class="kop-alamat">
-                  Kampus 2, Jalan Tamansari, Kelurahan Mugarsari, Kecamatan Tamansari<br/>
-                  Kota Tasikmalaya, Kode Pos 46191<br/>
-                  Telepon (0265) 330634, 333092 Faksimil (0265) 325812<br/>
-                  Laman: http://unsil.ac.id/fakultas/fakultas-pertanian/ Pos-el: fp@unsil.ac.id
-                </p>
-              </td>
-            </tr>
-          </table>
+      // Inisialisasi dokumen PDF A4 (210 x 297 mm)
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const marginX = 18;
+      const contentWidth = pageWidth - marginX * 2;
+      let y = 14;
 
-          <div class="title">FORMULIR PEMINJAMAN PERALATAN LABORATORIUM</div>
-          <div class="nomor">Nomor Transaksi: <b>${loan.loan_id || '-'}</b></div>
-
-          <p class="intro">Yang bertanda tangan di bawah ini:</p>
-          <table class="info">
-            <tr><td style="width:165px;">Nama Lengkap</td><td style="width:14px;">:</td><td><b>${namaPeminjam}</b></td></tr>
-            <tr><td>NIM / NIP</td><td>:</td><td>${nimNip}</td></tr>
-            <tr><td>Unit / Program Studi</td><td>:</td><td>${unitProdi}</td></tr>
-            <tr><td>Email / No. HP</td><td>:</td><td>${emailPeminjam} / ${phonePeminjam}</td></tr>
-            <tr><td>Laboratorium Tujuan</td><td>:</td><td><b>${namaLab}</b></td></tr>
-            <tr><td>Tanggal Peminjaman</td><td>:</td><td>${formatDateIndo(loan.loan_date)} s.d. ${formatDateIndo(loan.due_date)}</td></tr>
-            <tr><td>Tujuan Peminjaman</td><td>:</td><td>${loan.purpose || '-'}</td></tr>
-          </table>
-
-          <p class="intro">Mengajukan permohonan peminjaman peralatan laboratorium dengan rincian sebagai berikut:</p>
-          <table class="data">
-            <thead>
-              <tr>
-                <th style="width:36px;">No</th>
-                <th style="width:95px;">Kode Barang</th>
-                <th>Nama Peralatan</th>
-                <th style="width:88px;">Jumlah</th>
-                <th style="width:95px;">Kondisi Awal</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rowsHtml}
-            </tbody>
-          </table>
-
-          <div class="closing-block">
-            <div class="status-box">
-              <b>Status Permohonan:</b> DISETUJUI ${jabatanPenyetuju.toUpperCase()} (<i>${statusDisplay}</i>)<br/>
-              Peminjam bertanggung jawab penuh menjaga kebersihan, keamanan, dan keutuhan peralatan selama masa peminjaman hingga dikembalikan ke laboratorium. Jika dalam masa peminjaman terjadi kehilangan atau kerusakan, maka Peminjam bersedia memperbaiki/mengganti sesuai dengan spesifikasi.
-            </div>
-
-            <table class="ttd">
-              <tr>
-                <td>
-                  Menyetujui,<br/>${labelJabatanTtd}
-                  <br/><br/><br/><br/>
-                  <b>( ${namaPejabatPenyetuju} )</b><br/>
-                  <i>Disetujui via Sistem SILARAS</i>
-                </td>
-                <td>
-                  Mengetahui / Verifikasi,<br/>Laboran Pengelola
-                  <br/><br/><br/><br/>
-                  <b>( ${namaLaboran} )</b><br/>
-                  <i>Diverifikasi via Sistem SILARAS</i>
-                </td>
-                <td>
-                  Tasikmalaya, ${tanggalCetak}<br/>Peminjam
-                  <br/><br/><br/><br/>
-                  <b>( ${namaPeminjam} )</b><br/>
-                  NIM/NIP. ${nimNip}
-                </td>
-              </tr>
-            </table>
-          </div>
-        </body>
-        </html>
-      `;
-
-      const utf8Bytes = new TextEncoder().encode('\ufeff' + htmlDoc);
-      let binary = '';
-      for (let i = 0; i < utf8Bytes.length; i++) {
-        binary += String.fromCharCode(utf8Bytes[i]);
+      // 1. KOP SURAT + LOGO UNSIL 3 x 3 cm (30 x 30 mm)
+      if (logoSrc && logoSrc.startsWith('data:image')) {
+        doc.addImage(logoSrc, 'PNG', marginX, y, 30, 30);
       }
-      const base64DataUrl = 'data:application/msword;base64,' + btoa(binary);
-      const fileName = `Formulir_Peminjaman_${loan.loan_id || 'SILARAS'}.doc`;
-      return { htmlDoc, base64DataUrl, fileName };
+
+      const textCenterX = marginX + 32 + (contentWidth - 32) / 2;
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('times', 'bold');
+      doc.setFontSize(11.5);
+      doc.text('KEMENTERIAN PENDIDIKAN TINGGI,', textCenterX, y + 4.5, { align: 'center' });
+      doc.text('SAINS, DAN TEKNOLOGI', textCenterX, y + 9.2, { align: 'center' });
+      doc.setFontSize(13.5);
+      doc.text('UNIVERSITAS SILIWANGI', textCenterX, y + 14.5, { align: 'center' });
+      doc.setFontSize(12.5);
+      doc.text('FAKULTAS PERTANIAN', textCenterX, y + 19.5, { align: 'center' });
+
+      doc.setFont('times', 'normal');
+      doc.setFontSize(8.5);
+      doc.text('Kampus 2, Jalan Tamansari, Kelurahan Mugarsari, Kecamatan Tamansari', textCenterX, y + 23.8, { align: 'center' });
+      doc.text('Kota Tasikmalaya, Kode Pos 46191', textCenterX, y + 27.3, { align: 'center' });
+      doc.text('Telepon (0265) 330634, 333092 Faksimil (0265) 325812', textCenterX, y + 30.8, { align: 'center' });
+      doc.text('Laman: http://unsil.ac.id/fakultas/fakultas-pertanian/ Pos-el: fp@unsil.ac.id', textCenterX, y + 34.3, { align: 'center' });
+
+      y += 37;
+      doc.setLineWidth(0.7);
+      doc.line(marginX, y, pageWidth - marginX, y);
+      doc.setLineWidth(0.25);
+      doc.line(marginX, y + 1.1, pageWidth - marginX, y + 1.1);
+
+      // 2. JUDUL & NOMOR TRANSAKSI
+      y += 8.5;
+      doc.setFont('times', 'bold');
+      doc.setFontSize(12.5);
+      const titleText = 'FORMULIR PEMINJAMAN PERALATAN LABORATORIUM';
+      doc.text(titleText, pageWidth / 2, y, { align: 'center' });
+      const titleW = doc.getTextWidth(titleText);
+      doc.setLineWidth(0.35);
+      doc.line((pageWidth - titleW) / 2, y + 1, (pageWidth + titleW) / 2, y + 1);
+
+      y += 5.5;
+      doc.setFont('times', 'normal');
+      doc.setFontSize(11);
+      const nomorPrefix = 'Nomor Transaksi: ';
+      const nomorVal = String(loan.loan_id || '-');
+      const totalNomorW = doc.getTextWidth(nomorPrefix) + doc.setFont('times', 'bold').getTextWidth(nomorVal);
+      const nomorStartX = (pageWidth - totalNomorW) / 2;
+      doc.setFont('times', 'normal');
+      doc.text(nomorPrefix, nomorStartX, y);
+      doc.setFont('times', 'bold');
+      doc.text(nomorVal, nomorStartX + doc.getTextWidth(nomorPrefix), y);
+
+      // 3. IDENTITAS PEMINJAM
+      y += 8;
+      doc.setFont('times', 'normal');
+      doc.setFontSize(11);
+      doc.text('Yang bertanda tangan di bawah ini:', marginX, y);
+      y += 5.5;
+
+      const infoRows = [
+        ['Nama Lengkap', namaPeminjam, true],
+        ['NIM / NIP', nimNip, false],
+        ['Unit / Program Studi', unitProdi, false],
+        ['Email / No. HP', `${emailPeminjam} / ${phonePeminjam}`, false],
+        ['Laboratorium Tujuan', namaLab, true],
+        ['Tanggal Peminjaman', `${formatDateIndo(loan.loan_date)} s.d. ${formatDateIndo(loan.due_date)}`, false],
+        ['Tujuan Peminjaman', loan.purpose || '-', false],
+      ];
+
+      for (const [label, val, isBold] of infoRows) {
+        doc.setFont('times', 'normal');
+        doc.text(label, marginX + 1, y);
+        doc.text(':', marginX + 46, y);
+        doc.setFont('times', isBold ? 'bold' : 'normal');
+        const wrappedVal = doc.splitTextToSize(String(val), contentWidth - 50);
+        doc.text(wrappedVal, marginX + 49, y);
+        y += Math.max(5.5, wrappedVal.length * 5);
+      }
+
+      // 4. TABEL RINCIAN PERALATAN (autoTable otomatis mengulang header jika lanjut halaman)
+      y += 2;
+      doc.setFont('times', 'normal');
+      doc.text('Mengajukan permohonan peminjaman peralatan laboratorium dengan rincian sebagai berikut:', marginX, y);
+      y += 3;
+
+      const tableBody = itemsList.length > 0
+        ? itemsList.map((it, idx) => [
+            String(idx + 1),
+            String(it.item_id || '-'),
+            String(it.item_name || '-'),
+            `${Number(it.qty_requested ?? it.qty ?? 0)} ${it.unit || 'Unit'}`,
+            String(it.condition_before || it.condition_status || 'Baik'),
+          ])
+        : [['-', '-', 'Tidak ada rincian peralatan.', '-', '-']];
+
+      doc.autoTable({
+        startY: y,
+        margin: { left: marginX, right: marginX, top: 15, bottom: 15 },
+        head: [['No', 'Kode Barang', 'Nama Peralatan', 'Jumlah', 'Kondisi Awal']],
+        body: tableBody,
+        theme: 'grid',
+        styles: {
+          font: 'times',
+          fontSize: 10.5,
+          textColor: [0, 0, 0],
+          lineColor: [0, 0, 0],
+          lineWidth: 0.25,
+          cellPadding: 2.2,
+          valign: 'middle',
+        },
+        headStyles: {
+          fillColor: [240, 240, 240],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold',
+          halign: 'center',
+        },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 11 },
+          1: { halign: 'left', cellWidth: 27 },
+          2: { halign: 'left', fontStyle: 'bold' },
+          3: { halign: 'center', cellWidth: 24 },
+          4: { halign: 'center', cellWidth: 26 },
+        },
+      });
+
+      y = (doc.lastAutoTable?.finalY || y) + 5;
+
+      // 5. KOTAK STATUS + BLOK TANDA TANGAN (DIKUNCI UTUH AGAR TIDAK PERNAH TERPOTONG)
+      const statusBodyText = 'Peminjam bertanggung jawab penuh menjaga kebersihan, keamanan, dan keutuhan peralatan selama masa peminjaman hingga dikembalikan ke laboratorium. Jika dalam masa peminjaman terjadi kehilangan atau kerusakan, maka Peminjam bersedia memperbaiki/mengganti sesuai dengan spesifikasi.';
+      doc.setFont('times', 'normal');
+      doc.setFontSize(10);
+      const wrappedStatus = doc.splitTextToSize(statusBodyText, contentWidth - 6);
+      const statusBoxHeight = 8 + wrappedStatus.length * 4.4;
+
+      const jabatanLines = doc.splitTextToSize(labelJabatanTtd, 54);
+      const headerTtdLines = Math.max(2, 1 + jabatanLines.length);
+      const ttdBlockHeight = headerTtdLines * 4.5 + 18 + 10;
+      const totalClosingHeight = statusBoxHeight + 6 + ttdBlockHeight;
+
+      // Jika sisa ruang di halaman saat ini tidak cukup untuk seluruh kotak status + tanda tangan, pindah utuh ke halaman baru
+      if (y + totalClosingHeight > pageHeight - 15) {
+        doc.addPage();
+        y = 18;
+      }
+
+      // Gambar kotak status
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.25);
+      doc.rect(marginX, y, contentWidth, statusBoxHeight, 'FD');
+
+      let sy = y + 4.8;
+      doc.setFont('times', 'bold');
+      doc.text('Status Permohonan: ', marginX + 3, sy);
+      const statusLabelW = doc.getTextWidth('Status Permohonan: ');
+      doc.setFont('times', 'normal');
+      doc.text(`DISETUJUI ${jabatanPenyetuju.toUpperCase()} (${statusDisplay})`, marginX + 3 + statusLabelW, sy);
+
+      sy += 4.8;
+      doc.text(wrappedStatus, marginX + 3, sy);
+
+      // Gambar 3 kolom tanda tangan (utuh dalam 1 halaman)
+      const ttdTopY = y + statusBoxHeight + 7;
+      const colW = contentWidth / 3;
+      const col1X = marginX + colW * 0.5;
+      const col2X = marginX + colW * 1.5;
+      const col3X = marginX + colW * 2.5;
+
+      doc.setFont('times', 'normal');
+      doc.setFontSize(10.5);
+
+      // Kolom 1: Pejabat Penyetuju
+      doc.text('Menyetujui,', col1X, ttdTopY, { align: 'center' });
+      doc.text(jabatanLines, col1X, ttdTopY + 4.6, { align: 'center' });
+
+      // Kolom 2: Laboran Pengelola
+      doc.text('Mengetahui / Verifikasi,', col2X, ttdTopY, { align: 'center' });
+      doc.text('Laboran Pengelola', col2X, ttdTopY + 4.6, { align: 'center' });
+
+      // Kolom 3: Peminjam
+      doc.text(`Tasikmalaya, ${tanggalCetak}`, col3X, ttdTopY, { align: 'center' });
+      doc.text('Peminjam', col3X, ttdTopY + 4.6, { align: 'center' });
+
+      // Baris Nama & Keterangan
+      const nameY = ttdTopY + headerTtdLines * 4.6 + 17;
+      doc.setFont('times', 'bold');
+      doc.text(`( ${namaPejabatPenyetuju} )`, col1X, nameY, { align: 'center' });
+      doc.text(`( ${namaLaboran} )`, col2X, nameY, { align: 'center' });
+      doc.text(`( ${namaPeminjam} )`, col3X, nameY, { align: 'center' });
+
+      doc.setFont('times', 'italic');
+      doc.setFontSize(9.5);
+      doc.text('Disetujui via Sistem SILARAS', col1X, nameY + 4.5, { align: 'center' });
+      doc.text('Diverifikasi via Sistem SILARAS', col2X, nameY + 4.5, { align: 'center' });
+      doc.setFont('times', 'normal');
+      doc.text(`NIM/NIP. ${nimNip}`, col3X, nameY + 4.5, { align: 'center' });
+
+      const pdfBlob = doc.output('blob');
+      const base64DataUrl = doc.output('datauristring');
+      const fileName = `Formulir_Peminjaman_${loan.loan_id || 'SILARAS'}.pdf`;
+      return { pdfBlob, base64DataUrl, fileName };
     },
 
     async generateEquipmentLoanDoc(loan) {
@@ -235,7 +309,7 @@ export function createDocGeneratorMixin() {
         a.href = downloadUrl;
         a.target = '_blank';
         a.rel = 'noopener';
-        a.download = `Formulir_Peminjaman_${loan.loan_id || 'SILARAS'}.doc`;
+        a.download = `Formulir_Peminjaman_${loan.loan_id || 'SILARAS'}.pdf`;
         a.style.display = 'none';
         document.body.appendChild(a);
         a.click();
@@ -243,15 +317,14 @@ export function createDocGeneratorMixin() {
           if (a.parentNode) document.body.removeChild(a);
         }, 1500);
 
-        this.showToast('Mengunduh Dokumen Peminjaman dari Google Drive...');
+        this.showToast('Mengunduh Dokumen Peminjaman (.pdf) dari Google Drive...');
         return;
       }
 
       const payload = await this.buildEquipmentLoanDocPayload(loan);
       if (!payload) return;
 
-      const blob = new Blob(['\ufeff', payload.htmlDoc], { type: 'application/msword' });
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(payload.pdfBlob);
       const a = document.createElement('a');
       a.href = url;
       a.download = payload.fileName;
@@ -262,7 +335,7 @@ export function createDocGeneratorMixin() {
         if (a.parentNode) document.body.removeChild(a);
         URL.revokeObjectURL(url);
       }, 1500);
-      this.showToast('Dokumen Peminjaman Peralatan (.doc) berhasil diunduh');
+      this.showToast('Dokumen Peminjaman Peralatan (.pdf) berhasil diunduh');
     },
 
     generateAssetDisposalBA(item) {
