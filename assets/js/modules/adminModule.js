@@ -6,7 +6,7 @@ export function createAdminModule() {
 
     userModal: { open: false, data: { roles: ['User'], assigned_labs: [], status: 'active' } },
 
-    labModal: { open: false, is_edit: false, data: { lab_id: '', lab_name: '', lab_position: '', description: '', pic_name: '', laboran_name: '', max_capacity: 40, status: 'active' } },
+    labModal: { open: false, is_edit: false, data: { lab_id: '', lab_name: '', lab_position: '', description: '', approver_role: 'Kepala Laboratorium', pic_name: '', laboran_name: '', max_capacity: 40, status: 'active' } },
 
     selectedMatrixRole: 'Laboran',
 
@@ -212,6 +212,7 @@ export function createAdminModule() {
                 lab_name: lab.lab_name || '',
                 lab_position: lab.lab_position || lab.lab_code || '',
                 description: lab.description || '',
+                approver_role: lab.approver_role || 'Kepala Laboratorium',
                 pic_name: lab.pic_name || '',
                 laboran_name: lab.laboran_name || '',
                 max_capacity: Number(lab.max_capacity || 40),
@@ -227,6 +228,7 @@ export function createAdminModule() {
                 lab_name: '',
                 lab_position: '',
                 description: '',
+                approver_role: 'Kepala Laboratorium',
                 pic_name: '',
                 laboran_name: '',
                 max_capacity: 40,
