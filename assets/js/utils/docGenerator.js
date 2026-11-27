@@ -50,13 +50,20 @@ export function createDocGeneratorMixin() {
       const emailPeminjam = prof.email || fallbackUser.email || '-';
       const phonePeminjam = prof.phone || fallbackUser.phone || '-';
       const namaLab = loan.lab_name || loan.lab_id || 'Laboratorium Fakultas Pertanian';
-      const labInfo = (this.publicData?.labs || this.adminData?.labs || []).find((lb) => lb.lab_id === loan.lab_id) || {};
+      const allLabs = [
+        ...(this.dashData?.laboratories || []),
+        ...(this.adminData?.labs || []),
+        ...(this.publicData?.labs || []),
+      ];
+      const labInfo = allLabs.find((lb) => lb.lab_id === loan.lab_id || lb.lab_name === namaLab) || {};
       const jabatanPenyetuju = labInfo.approver_role || 'Kepala Laboratorium';
       const labelJabatanTtd = jabatanPenyetuju === 'Wakil Dekan Bidang Akademik'
         ? 'Wakil Dekan Bidang Akademik'
         : `Kepala ${namaLab}`;
       const namaPejabatPenyetuju = labInfo.pic_name || '....................................................';
-      const namaLaboran = labInfo.laboran_name || '........................................';
+      const namaLaboran = (labInfo.laboran_name && String(labInfo.laboran_name).trim())
+        ? String(labInfo.laboran_name).trim()
+        : '........................................';
 
       const itemsList = typeof this.uniqueLoanItems === 'function'
         ? this.uniqueLoanItems(loan.items || [])
