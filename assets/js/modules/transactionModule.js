@@ -427,7 +427,16 @@ export function createTransactionModule() {
               try {
                 const loanObj = (this.dashData?.loans || []).find((x) => x.loan_id === id);
                 if (loanObj && typeof this.buildEquipmentLoanDocPayload === 'function') {
-                  const docPayload = await this.buildEquipmentLoanDocPayload({ ...loanObj, status: res.status || 'borrowed' });
+                  const nowIso = new Date().toISOString();
+                  const enrichedLoanForDoc = {
+                    ...loanObj,
+                    status: res.status || 'borrowed',
+                    approved_by: this.session?.full_name || loanObj.approved_by,
+                    approved_at: nowIso,
+                    verified_by: loanObj.verified_by || this.session?.full_name,
+                    verified_at: loanObj.verified_at || nowIso,
+                  };
+                  const docPayload = await this.buildEquipmentLoanDocPayload(enrichedLoanForDoc);
                   if (docPayload?.base64DataUrl) {
                     await this.runGas('apiAttachLoanDocument', this.session.token, id, docPayload.base64DataUrl, docPayload.fileName);
                   }
