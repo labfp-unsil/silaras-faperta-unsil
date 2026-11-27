@@ -32,6 +32,7 @@ export function createDocGeneratorMixin() {
           const namaLab = loan.lab_name || loan.lab_id || 'Laboratorium Fakultas Pertanian';
           const labInfo = (this.publicData?.labs || this.adminData?.labs || []).find((lb) => lb.lab_id === loan.lab_id) || {};
           const namaKalab = labInfo.pic_name || '....................................................';
+          const namaLaboran = labInfo.laboran_name || '........................................';
 
           const itemsList = typeof this.uniqueLoanItems === 'function'
             ? this.uniqueLoanItems(loan.items || [])
@@ -127,8 +128,8 @@ export function createDocGeneratorMixin() {
                   <td>
                     Mengetahui / Verifikasi,<br/>Laboran Pengelola
                     <br/><br/><br/><br/>
-                    ( ........................................ )<br/>
-                    NIP/NIK. ............................
+                    <b>( ${namaLaboran} )</b><br/>
+                    <i>Diverifikasi via Sistem SILARAS</i>
                   </td>
                   <td>
                     Tasikmalaya, ${tanggalCetak}<br/>Peminjam
