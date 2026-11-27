@@ -1,7 +1,31 @@
 export function createDocGeneratorMixin() {
   return {
-    buildEquipmentLoanDocPayload(loan) {
+    async getUnsilLogoDataUrl() {
+      if (this._unsilLogoDataUrl) return this._unsilLogoDataUrl;
+      try {
+        const logoUrl = new URL('./assets/img/logo-unsil.png', window.location.href).href;
+        const img = await new Promise((resolve, reject) => {
+          const el = new Image();
+          el.crossOrigin = 'anonymous';
+          el.onload = () => resolve(el);
+          el.onerror = reject;
+          el.src = logoUrl;
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = 88;
+        canvas.height = 88;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, 88, 88);
+        this._unsilLogoDataUrl = canvas.toDataURL('image/png');
+        return this._unsilLogoDataUrl;
+      } catch (_) {
+        return new URL('./assets/img/logo-unsil.png', window.location.href).href;
+      }
+    },
+
+    async buildEquipmentLoanDocPayload(loan) {
       if (!loan) return null;
+      const logoSrc = await this.getUnsilLogoDataUrl();
       const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
       const formatDateIndo = (ymd) => {
         const raw = String(ymd || '').slice(0, 10);
@@ -60,35 +84,58 @@ export function createDocGeneratorMixin() {
         <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
         <head><meta charset='utf-8'><title>Formulir Peminjaman Peralatan Laboratorium - ${loan.loan_id || ''}</title>
         <style>
-          body { font-family: 'Times New Roman', serif; font-size: 11.5pt; line-height: 1.45; margin: 1.8cm 2cm; }
-          .kop { text-align: center; border-bottom: 3px double #000; padding-bottom: 8px; margin-bottom: 16px; }
-          .kop h2, .kop h3, .kop p { margin: 2px 0; }
-          .title { text-align: center; font-weight: bold; text-decoration: underline; margin: 14px 0 2px 0; font-size: 13pt; }
-          .nomor { text-align: center; margin-bottom: 16px; font-size: 11pt; }
-          table.info { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11pt; }
-          table.info td { padding: 3px 4px; vertical-align: top; }
-          table.data { width: 100%; border-collapse: collapse; margin: 12px 0; }
-          table.data th, table.data td { border: 1px solid #000; padding: 6px 8px; text-align: left; font-size: 10.5pt; }
-          table.data th { background-color: #f0f0f0; text-align: center; }
-          .status-box { border: 1px solid #000; background-color: #f8fafc; padding: 8px 10px; margin: 12px 0; font-size: 10.5pt; }
-          table.ttd { width: 100%; margin-top: 28px; text-align: center; font-size: 10.5pt; }
+          @page { size: A4; margin: 1.5cm 1.8cm 1.5cm 1.8cm; }
+          body { font-family: 'Times New Roman', serif; font-size: 11.5pt; line-height: 1.38; margin: 0; color: #000; }
+          table.kop-table { width: 100%; border-collapse: collapse; border-bottom: 3px double #000; margin-bottom: 14px; }
+          table.kop-table td { vertical-align: middle; padding-bottom: 8px; }
+          .kop-text { text-align: center; }
+          .kop-kementerian { font-size: 12pt; font-weight: bold; margin: 0; letter-spacing: 0.2px; }
+          .kop-univ { font-size: 14pt; font-weight: bold; margin: 1px 0; }
+          .kop-fak { font-size: 13pt; font-weight: bold; margin: 1px 0 3px 0; }
+          .kop-alamat { font-size: 9pt; margin: 0; line-height: 1.25; }
+          .title { text-align: center; font-weight: bold; text-decoration: underline; margin: 12px 0 2px 0; font-size: 12.5pt; }
+          .nomor { text-align: center; margin-bottom: 14px; font-size: 11pt; }
+          p.intro { margin: 8px 0 6px 0; }
+          table.info { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 11pt; }
+          table.info td { padding: 2.5px 4px; vertical-align: top; }
+          table.data { width: 100%; border-collapse: collapse; margin: 8px 0 12px 0; }
+          table.data thead { display: table-header-group; }
+          table.data tr { page-break-inside: avoid; break-inside: avoid; }
+          table.data th, table.data td { border: 1px solid #000; padding: 5px 8px; text-align: left; font-size: 10.5pt; }
+          table.data th { background-color: #f0f0f0; text-align: center; font-weight: bold; }
+          .closing-block { page-break-inside: avoid; break-inside: avoid; }
+          .status-box { border: 1px solid #000; background-color: #f8fafc; padding: 8px 10px; margin: 10px 0 16px 0; font-size: 10.5pt; text-align: justify; page-break-inside: avoid; break-inside: avoid; }
+          table.ttd { width: 100%; margin-top: 12px; text-align: center; font-size: 10.5pt; page-break-inside: avoid; break-inside: avoid; }
+          table.ttd tr { page-break-inside: avoid; break-inside: avoid; }
           table.ttd td { width: 33.3%; vertical-align: top; padding: 0 4px; }
         </style>
         </head>
         <body>
-          <div class="kop">
-            <h3>KEMENTERIAN PENDIDIKAN TINGGI, SAINS, DAN TEKNOLOGI</h3>
-            <h2>UNIVERSITAS SILIWANGI</h2>
-            <h3>FAKULTAS PERTANIAN</h3>
-            <p style="font-size:10pt;">Jalan Siliwangi No. 24 Kotak Pos 164 Tasikmalaya 46115</p>
-          </div>
+          <table class="kop-table">
+            <tr>
+              <td style="width: 92px; text-align: center;">
+                <img src="${logoSrc}" width="84" height="84" alt="Logo UNSIL" />
+              </td>
+              <td class="kop-text">
+                <p class="kop-kementerian">KEMENTERIAN PENDIDIKAN TINGGI,<br/>SAINS, DAN TEKNOLOGI</p>
+                <p class="kop-univ">UNIVERSITAS SILIWANGI</p>
+                <p class="kop-fak">FAKULTAS PERTANIAN</p>
+                <p class="kop-alamat">
+                  Kampus 2, Jalan Tamansari, Kelurahan Mugarsari, Kecamatan Tamansari<br/>
+                  Kota Tasikmalaya, Kode Pos 46191<br/>
+                  Telepon (0265) 330634, 333092 Faksimil (0265) 325812<br/>
+                  Laman: http://unsil.ac.id/fakultas/fakultas-pertanian/ Pos-el: fp@unsil.ac.id
+                </p>
+              </td>
+            </tr>
+          </table>
 
           <div class="title">FORMULIR PEMINJAMAN PERALATAN LABORATORIUM</div>
           <div class="nomor">Nomor Transaksi: <b>${loan.loan_id || '-'}</b></div>
 
-          <p>Yang bertanda tangan di bawah ini:</p>
+          <p class="intro">Yang bertanda tangan di bawah ini:</p>
           <table class="info">
-            <tr><td style="width:170px;">Nama Lengkap</td><td style="width:15px;">:</td><td><b>${namaPeminjam}</b></td></tr>
+            <tr><td style="width:165px;">Nama Lengkap</td><td style="width:14px;">:</td><td><b>${namaPeminjam}</b></td></tr>
             <tr><td>NIM / NIP</td><td>:</td><td>${nimNip}</td></tr>
             <tr><td>Unit / Program Studi</td><td>:</td><td>${unitProdi}</td></tr>
             <tr><td>Email / No. HP</td><td>:</td><td>${emailPeminjam} / ${phonePeminjam}</td></tr>
@@ -97,14 +144,14 @@ export function createDocGeneratorMixin() {
             <tr><td>Tujuan Peminjaman</td><td>:</td><td>${loan.purpose || '-'}</td></tr>
           </table>
 
-          <p>Mengajukan permohonan peminjaman peralatan laboratorium dengan rincian sebagai berikut:</p>
+          <p class="intro">Mengajukan permohonan peminjaman peralatan laboratorium dengan rincian sebagai berikut:</p>
           <table class="data">
             <thead>
               <tr>
                 <th style="width:36px;">No</th>
                 <th style="width:95px;">Kode Barang</th>
                 <th>Nama Peralatan</th>
-                <th style="width:90px;">Jumlah</th>
+                <th style="width:88px;">Jumlah</th>
                 <th style="width:95px;">Kondisi Awal</th>
               </tr>
             </thead>
@@ -113,33 +160,35 @@ export function createDocGeneratorMixin() {
             </tbody>
           </table>
 
-          <div class="status-box">
-            <b>Status Permohonan:</b> DISETUJUI ${jabatanPenyetuju.toUpperCase()} (<i>${statusDisplay}</i>)<br/>
-            Peminjam bertanggung jawab penuh menjaga kebersihan, keamanan, dan keutuhan peralatan selama masa peminjaman hingga dikembalikan ke laboratorium.
-          </div>
+          <div class="closing-block">
+            <div class="status-box">
+              <b>Status Permohonan:</b> DISETUJUI ${jabatanPenyetuju.toUpperCase()} (<i>${statusDisplay}</i>)<br/>
+              Peminjam bertanggung jawab penuh menjaga kebersihan, keamanan, dan keutuhan peralatan selama masa peminjaman hingga dikembalikan ke laboratorium. Jika dalam masa peminjaman terjadi kehilangan atau kerusakan, maka Peminjam bersedia memperbaiki/mengganti sesuai dengan spesifikasi.
+            </div>
 
-          <table class="ttd">
-            <tr>
-              <td>
-                Menyetujui,<br/>${labelJabatanTtd}
-                <br/><br/><br/><br/>
-                <b>( ${namaPejabatPenyetuju} )</b><br/>
-                <i>Disetujui via Sistem SILARAS</i>
-              </td>
-              <td>
-                Mengetahui / Verifikasi,<br/>Laboran Pengelola
-                <br/><br/><br/><br/>
-                <b>( ${namaLaboran} )</b><br/>
-                <i>Diverifikasi via Sistem SILARAS</i>
-              </td>
-              <td>
-                Tasikmalaya, ${tanggalCetak}<br/>Peminjam
-                <br/><br/><br/><br/>
-                <b>( ${namaPeminjam} )</b><br/>
-                NIM/NIP. ${nimNip}
-              </td>
-            </tr>
-          </table>
+            <table class="ttd">
+              <tr>
+                <td>
+                  Menyetujui,<br/>${labelJabatanTtd}
+                  <br/><br/><br/><br/>
+                  <b>( ${namaPejabatPenyetuju} )</b><br/>
+                  <i>Disetujui via Sistem SILARAS</i>
+                </td>
+                <td>
+                  Mengetahui / Verifikasi,<br/>Laboran Pengelola
+                  <br/><br/><br/><br/>
+                  <b>( ${namaLaboran} )</b><br/>
+                  <i>Diverifikasi via Sistem SILARAS</i>
+                </td>
+                <td>
+                  Tasikmalaya, ${tanggalCetak}<br/>Peminjam
+                  <br/><br/><br/><br/>
+                  <b>( ${namaPeminjam} )</b><br/>
+                  NIM/NIP. ${nimNip}
+                </td>
+              </tr>
+            </table>
+          </div>
         </body>
         </html>
       `;
@@ -154,7 +203,7 @@ export function createDocGeneratorMixin() {
       return { htmlDoc, base64DataUrl, fileName };
     },
 
-    generateEquipmentLoanDoc(loan) {
+    async generateEquipmentLoanDoc(loan) {
       if (!loan) return;
       const now = Date.now();
       const lockKey = String(loan.loan_id || 'SILARAS');
@@ -187,7 +236,7 @@ export function createDocGeneratorMixin() {
         return;
       }
 
-      const payload = this.buildEquipmentLoanDocPayload(loan);
+      const payload = await this.buildEquipmentLoanDocPayload(loan);
       if (!payload) return;
 
       const blob = new Blob(['\ufeff', payload.htmlDoc], { type: 'application/msword' });
