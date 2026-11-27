@@ -119,6 +119,9 @@ Alpine.data('silarasApp', () => ({
             }
           }
           this.loadPublicHome();
+          if (typeof this.initPublicUrlVerifier === 'function') {
+            this.initPublicUrlVerifier();
+          }
           this.startRealtimeSync();
         },
 
