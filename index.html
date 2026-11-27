@@ -2517,7 +2517,7 @@
                     <th class="px-3 py-2.5">Nama Laboratorium</th>
                     <th class="px-3 py-2.5">Posisi Lab</th>
                     <th class="px-3 py-2.5">Keterangan Informasi Umum</th>
-                    <th class="px-3 py-2.5">Kepala Laboratorium</th>
+                    <th class="px-3 py-2.5">Pejabat Penyetuju (Ka. Lab / WD I)</th>
                     <th class="px-3 py-2.5">Laboran</th>
                     <th class="px-3 py-2.5">Maks. Pengguna / Waktu</th>
                     <th class="px-3 py-2.5">Status</th>
@@ -2531,7 +2531,10 @@
                       <td class="px-3 py-2.5 font-bold text-slate-900" x-text="lb.lab_name"></td>
                       <td class="px-3 py-2.5 font-medium text-emerald-800" x-text="lb.lab_position || lb.lab_code || '-'"></td>
                       <td class="px-3 py-2.5 text-slate-600 max-w-xs" x-text="lb.description || '-'"></td>
-                      <td class="px-3 py-2.5 text-slate-700" x-text="lb.pic_name || '-'"></td>
+                      <td class="px-3 py-2.5 text-slate-700">
+                        <div class="font-semibold text-slate-900" x-text="lb.pic_name || '-'"></div>
+                        <div class="text-[11px] text-emerald-700 font-medium" x-text="lb.approver_role || 'Kepala Laboratorium'"></div>
+                      </td>
                       <td class="px-3 py-2.5 text-slate-700" x-text="lb.laboran_name || '-'"></td>
                       <td class="px-3 py-2.5 font-bold text-emerald-900 whitespace-nowrap" x-text="(lb.max_capacity || 40) + ' Orang'"></td>
                       <td class="px-3 py-2.5">
@@ -3386,8 +3389,17 @@
         </div>
 
         <div>
-          <label class="block font-bold text-slate-700 mb-1">Kepala Laboratorium *</label>
-          <input type="text" x-model="labModal.data.pic_name" required placeholder="Nama lengkap beserta gelar" class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:border-emerald-700" />
+          <label class="block font-bold text-slate-700 mb-1">Jabatan Pejabat Penyetuju Dokumen *</label>
+          <select x-model="labModal.data.approver_role" required class="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white focus:outline-none focus:border-emerald-700">
+            <option value="Kepala Laboratorium">Kepala Laboratorium</option>
+            <option value="Wakil Dekan Bidang Akademik">Wakil Dekan Bidang Akademik</option>
+          </select>
+          <p class="text-[11px] text-slate-500 mt-1">Pilih Wakil Dekan Bidang Akademik apabila posisi Kepala Laboratorium sedang kosong.</p>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1" x-text="'Nama ' + (labModal.data.approver_role || 'Kepala Laboratorium') + ' *'"></label>
+          <input type="text" x-model="labModal.data.pic_name" required placeholder="Nama lengkap pejabat beserta gelar" class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:border-emerald-700" />
         </div>
 
         <div>
