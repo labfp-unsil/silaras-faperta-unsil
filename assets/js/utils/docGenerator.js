@@ -165,8 +165,25 @@ export function createDocGeneratorMixin() {
       this._lastLoanDocTime = now;
 
       if (loan.loan_doc_url && /^https?:\/\//i.test(loan.loan_doc_url)) {
-        window.open(loan.loan_doc_url, '_blank', 'noopener');
-        this.showToast('Membuka arsip Dokumen Peminjaman di Google Drive');
+        const rawUrl = String(loan.loan_doc_url);
+        const idMatch = rawUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || rawUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+        const downloadUrl = idMatch && idMatch[1]
+          ? `https://drive.google.com/uc?export=download&id=${idMatch[1]}`
+          : rawUrl;
+
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.download = `Formulir_Peminjaman_${loan.loan_id || 'SILARAS'}.doc`;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          if (a.parentNode) document.body.removeChild(a);
+        }, 1500);
+
+        this.showToast('Mengunduh Dokumen Peminjaman dari Google Drive...');
         return;
       }
 
