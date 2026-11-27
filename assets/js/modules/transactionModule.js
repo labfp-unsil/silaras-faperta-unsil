@@ -307,6 +307,14 @@ export function createTransactionModule() {
             this.showToast('Silakan pilih laboratorium terlebih dahulu.', 'error');
             return;
           }
+          if (!this.loanForm.loan_date || !this.loanForm.due_date) {
+            this.showToast('Tanggal pinjam dan tanggal kembali wajib diisi.', 'error');
+            return;
+          }
+          if (String(this.loanForm.due_date) < String(this.loanForm.loan_date)) {
+            this.showToast('Tanggal kembali tidak boleh lebih awal dari tanggal pinjam.', 'error');
+            return;
+          }
           if (!this.loanForm.purpose || !String(this.loanForm.purpose).trim()) {
             this.showToast('Tujuan peminjaman wajib diisi.', 'error');
             return;
