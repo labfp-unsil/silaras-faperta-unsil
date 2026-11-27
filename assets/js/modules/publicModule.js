@@ -157,5 +157,234 @@ export function createPublicModule() {
           }
           return 'bg-[#0284C7] text-white';
         }
+		
+	verifyModal: {
+      open: false,
+      tab: 'manual', // 'manual' | 'camera'
+      loanId: '',
+      sigId: '',
+      loading: false,
+      result: null,
+      error: '',
+      scanning: false,
+      scanStream: null,
+      scanTimer: null,
+    },
+
+    initPublicUrlVerifier() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const docParam = params.get('verify_doc') || params.get('doc');
+        const sigParam = params.get('sig') || params.get('sig_id');
+        if (docParam || sigParam) {
+          this.openVerifyModal({
+            loanId: docParam || '',
+            sigId: sigParam || '',
+            autoSubmit: true,
+          });
+        }
+      } catch (_) {}
+    },
+
+    openVerifyModal(opts = {}) {
+      this.stopQrScanner();
+      this.verifyModal = {
+        open: true,
+        tab: opts.tab || 'manual',
+        loanId: String(opts.loanId || '').trim(),
+        sigId: String(opts.sigId || '').trim(),
+        loading: false,
+        result: null,
+        error: '',
+        scanning: false,
+        scanStream: null,
+        scanTimer: null,
+      };
+      if (opts.autoSubmit && (this.verifyModal.loanId || this.verifyModal.sigId)) {
+        this.submitVerifyDocument();
+      } else if (this.verifyModal.tab === 'camera') {
+        this.$nextTick(() => this.startQrScanner());
+      }
+    },
+
+    closeVerifyModal() {
+      this.stopQrScanner();
+      this.verifyModal.open = false;
+    },
+
+    parseScannedQrPayload(rawText) {
+      const raw = String(rawText || '').trim();
+      if (!raw) return { loanId: '', sigId: '' };
+
+      // 1. Jika format URL (?verify_doc=...&sig=...)
+      try {
+        const u = new URL(raw);
+        const doc = u.searchParams.get('verify_doc') || u.searchParams.get('doc') || '';
+        const sig = u.searchParams.get('sig') || u.searchParams.get('sig_id') || '';
+        if (doc || sig) return { loanId: doc.trim(), sigId: sig.trim() };
+      } catch (_) {}
+
+      // 2. Jika format multi-baris lama (Doc: ... / SigID: ...)
+      const docMatch = raw.match(/Doc:\s*([A-Za-z0-9\-_]+)/i);
+      const sigMatch = raw.match(/SigID:\s*([A-Fa-f0-9]+)/i);
+      if (docMatch || sigMatch) {
+        return {
+          loanId: docMatch ? docMatch[1].trim() : '',
+          sigId: sigMatch ? sigMatch[1].trim() : '',
+        };
+      }
+
+      // 3. Jika hanya kode SigID hex atau Nomor Transaksi tunggal
+      if (/^[A-Fa-f0-9]{10,12}$/.test(raw)) {
+        return { loanId: '', sigId: raw.toUpperCase() };
+      }
+      return { loanId: raw, sigId: '' };
+    },
+
+    async submitVerifyDocument() {
+      const loanId = String(this.verifyModal.loanId || '').trim();
+      const sigId = String(this.verifyModal.sigId || '').trim();
+      if (!loanId && !sigId) {
+        this.verifyModal.error = 'Masukkan Nomor Transaksi atau Kode SigID terlebih dahulu.';
+        return;
+      }
+      this.verifyModal.loading = true;
+      this.verifyModal.error = '';
+      this.verifyModal.result = null;
+      try {
+        const res = await this.runGasSilent('apiVerifyDocumentSignature', loanId, sigId);
+        this.verifyModal.result = res;
+        if (!res?.valid) {
+          this.verifyModal.error = res?.message || 'Tanda tangan dokumen tidak valid.';
+        }
+      } catch (e) {
+        this.verifyModal.error = e.message || 'Gagal memverifikasi dokumen.';
+      } finally {
+        this.verifyModal.loading = false;
+      }
+    },
+
+    async startQrScanner() {
+      this.stopQrScanner();
+      this.verifyModal.tab = 'camera';
+      this.verifyModal.error = '';
+
+      if (!navigator.mediaDevices?.getUserMedia) {
+        this.verifyModal.error = 'Perangkat/browser ini tidak mendukung akses kamera. Gunakan unggah gambar QR atau input manual.';
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false,
+        });
+        this.verifyModal.scanStream = stream;
+        this.verifyModal.scanning = true;
+
+        await this.$nextTick();
+        const video = document.getElementById('silarasQrVideo');
+        if (!video) return;
+        video.srcObject = stream;
+        await video.play();
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const detector = 'BarcodeDetector' in window
+          ? new window.BarcodeDetector({ formats: ['qr_code'] })
+          : null;
+
+        this.verifyModal.scanTimer = setInterval(async () => {
+          if (!this.verifyModal.scanning || video.readyState < 2) return;
+          try {
+            let decodedText = '';
+            if (detector) {
+              const codes = await detector.detect(video);
+              if (codes && codes.length > 0) decodedText = codes[0].rawValue || '';
+            } else if (typeof window.jsQR === 'function') {
+              canvas.width = video.videoWidth;
+              canvas.height = video.videoHeight;
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              const code = window.jsQR(imgData.data, imgData.width, imgData.height);
+              if (code?.data) decodedText = code.data;
+            }
+
+            if (decodedText) {
+              const parsed = this.parseScannedQrPayload(decodedText);
+              this.verifyModal.loanId = parsed.loanId;
+              this.verifyModal.sigId = parsed.sigId;
+              this.stopQrScanner();
+              this.verifyModal.tab = 'manual';
+              await this.submitVerifyDocument();
+            }
+          } catch (_) {}
+        }, 350);
+      } catch (err) {
+        this.verifyModal.scanning = false;
+        this.verifyModal.error = 'Izin kamera ditolak atau kamera tidak tersedia: ' + (err?.message || '');
+      }
+    },
+
+    stopQrScanner() {
+      if (this.verifyModal?.scanTimer) {
+        clearInterval(this.verifyModal.scanTimer);
+        this.verifyModal.scanTimer = null;
+      }
+      if (this.verifyModal?.scanStream) {
+        this.verifyModal.scanStream.getTracks().forEach((t) => t.stop());
+        this.verifyModal.scanStream = null;
+      }
+      if (this.verifyModal) {
+        this.verifyModal.scanning = false;
+      }
+    },
+
+    async handleQrImageUpload(event) {
+      const file = event.target?.files?.[0];
+      if (!file) return;
+      this.verifyModal.error = '';
+      try {
+        const imgUrl = URL.createObjectURL(file);
+        const img = await new Promise((resolve, reject) => {
+          const el = new Image();
+          el.onload = () => resolve(el);
+          el.onerror = reject;
+          el.src = imgUrl;
+        });
+
+        let decodedText = '';
+        if ('BarcodeDetector' in window) {
+          const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+          const codes = await detector.detect(img);
+          if (codes && codes.length > 0) decodedText = codes[0].rawValue || '';
+        }
+        if (!decodedText && typeof window.jsQR === 'function') {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = window.jsQR(imgData.data, imgData.width, imgData.height);
+          if (code?.data) decodedText = code.data;
+        }
+        URL.revokeObjectURL(imgUrl);
+
+        if (!decodedText) {
+          this.verifyModal.error = 'QR Code tidak terbaca dari gambar tersebut. Pastikan gambar tajam dan tidak terpotong.';
+          return;
+        }
+        const parsed = this.parseScannedQrPayload(decodedText);
+        this.verifyModal.loanId = parsed.loanId;
+        this.verifyModal.sigId = parsed.sigId;
+        this.verifyModal.tab = 'manual';
+        await this.submitVerifyDocument();
+      } catch (e) {
+        this.verifyModal.error = 'Gagal memproses gambar QR: ' + (e?.message || '');
+      } finally {
+        event.target.value = '';
+      }
+    },	
   };
 }
