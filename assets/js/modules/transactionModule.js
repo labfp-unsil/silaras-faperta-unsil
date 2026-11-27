@@ -419,7 +419,7 @@ export function createTransactionModule() {
               try {
                 const loanObj = (this.dashData?.loans || []).find((x) => x.loan_id === id);
                 if (loanObj && typeof this.buildEquipmentLoanDocPayload === 'function') {
-                  const docPayload = this.buildEquipmentLoanDocPayload({ ...loanObj, status: res.status || 'borrowed' });
+                  const docPayload = await this.buildEquipmentLoanDocPayload({ ...loanObj, status: res.status || 'borrowed' });
                   if (docPayload?.base64DataUrl) {
                     await this.runGas('apiAttachLoanDocument', this.session.token, id, docPayload.base64DataUrl, docPayload.fileName);
                   }
