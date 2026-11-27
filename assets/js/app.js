@@ -280,10 +280,11 @@ Alpine.data('silarasApp', () => ({
           const src = res.dashboard && typeof res.dashboard === 'object' ? res.dashboard : res;
           return {
             stats: src.stats || this.dashData.stats || {},
+            laboratories: Array.isArray(src.laboratories) ? src.laboratories : (this.dashData.laboratories || []),
             bookings: Array.isArray(src.bookings) ? src.bookings : (Array.isArray(src.room_bookings) ? src.room_bookings : []),
             loans: Array.isArray(src.loans) ? src.loans : (Array.isArray(src.equipment_loans) ? src.equipment_loans : []),
             usages: Array.isArray(src.usages) ? src.usages : (Array.isArray(src.material_usages) ? src.material_usages : []),
-            notifications: Array.isArray(src.notifications) ? src.notifications : []
+            notifications: Array.isArray(src.notifications) ? src.notifications : [],
           };
         },
 
