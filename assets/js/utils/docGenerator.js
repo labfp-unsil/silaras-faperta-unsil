@@ -31,8 +31,11 @@ export function createDocGeneratorMixin() {
           const phonePeminjam = prof.phone || fallbackUser.phone || '-';
           const namaLab = loan.lab_name || loan.lab_id || 'Laboratorium Fakultas Pertanian';
           const labInfo = (this.publicData?.labs || this.adminData?.labs || []).find((lb) => lb.lab_id === loan.lab_id) || {};
-          const namaKalab = labInfo.pic_name || '....................................................';
-          const namaLaboran = labInfo.laboran_name || '........................................';
+          const jabatanPenyetuju = labInfo.approver_role || 'Kepala Laboratorium';
+          const labelJabatanTtd = jabatanPenyetuju === 'Wakil Dekan Bidang Akademik'
+            ? 'Wakil Dekan Bidang Akademik'
+            : `Kepala ${namaLab}`;
+          const namaPejabatPenyetuju = labInfo.pic_name || '....................................................';
 
           const itemsList = typeof this.uniqueLoanItems === 'function'
             ? this.uniqueLoanItems(loan.items || [])
@@ -113,16 +116,16 @@ export function createDocGeneratorMixin() {
               </table>
 
               <div class="status-box">
-                <b>Status Permohonan:</b> DISETUJUI KEPALA LABORATORIUM (<i>${loan.status || 'borrowed'}</i>)<br/>
+                <b>Status Permohonan:</b> DISETUJUI ${jabatanPenyetuju.toUpperCase()} (<i>${loan.status || 'borrowed'}</i>)<br/>
                 Peminjam bertanggung jawab penuh menjaga kebersihan, keamanan, dan keutuhan peralatan selama masa peminjaman hingga dikembalikan ke laboratorium.
               </div>
 
               <table class="ttd">
                 <tr>
                   <td>
-                    Menyetujui,<br/>Kepala ${namaLab}
+                    Menyetujui,<br/>${labelJabatanTtd}
                     <br/><br/><br/><br/>
-                    <b>( ${namaKalab} )</b><br/>
+                    <b>( ${namaPejabatPenyetuju} )</b><br/>
                     <i>Disetujui via Sistem SILARAS</i>
                   </td>
                   <td>
