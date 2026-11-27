@@ -516,16 +516,22 @@ export function createTransactionModule() {
             labName: loan.lab_name || '',
             notes: '',
             items: items.map((it) => {
-              const alreadyReturned = it.return_status === 'returned';
+              const qtyReq = Number(it.qty_requested || 1);
+              const qtyDone = Number(it.qty_returned_good || 0) + Number(it.qty_returned_minor_dmg || 0) + Number(it.qty_returned_damaged || 0);
+              const qtyRem = Math.max(0, qtyReq - qtyDone);
+              const alreadyReturned = it.return_status === 'returned' || qtyRem <= 0;
               return {
                 loan_item_id: it.loan_item_id,
                 eq_inv_id: it.eq_inv_id,
                 item_id: it.item_id,
                 item_name: it.item_name,
-                qty_requested: Number(it.qty_requested || 1),
+                qty_requested: qtyReq,
+                qty_already_returned: qtyDone,
+                qty_remaining: qtyRem,
+                qty_to_return: qtyRem > 0 ? qtyRem : 0, // Default seluruh sisa unit, bisa disesuaikan (misal 3 dari 6)
                 already_returned: alreadyReturned,
                 return_status: it.return_status || '',
-                selected: !alreadyReturned, // Default pilih semua (sekaligus), bisa di-uncheck untuk per item
+                selected: !alreadyReturned,
                 return_condition: it.return_condition || 'Baik',
                 condition_notes: '',
               };
@@ -543,13 +549,18 @@ export function createTransactionModule() {
           const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
           return unique
             .map((it) => {
+              const qtyReq = Number(it.qty_requested || 0);
+              const qtyDone = Number(it.qty_returned_good || 0) + Number(it.qty_returned_minor_dmg || 0) + Number(it.qty_returned_damaged || 0);
               const cond = it.return_condition || it.initial_condition || 'Baik';
-              const badge = it.return_status === 'returned'
-                ? ' <span class="text-[10px] font-bold text-emerald-700">(Sudah Kembali)</span>'
-                : it.return_status === 'return_requested'
-                  ? ' <span class="text-[10px] font-bold text-indigo-700">(Diajukan Kembali)</span>'
-                  : '';
-              return `<div>${esc(it.item_name)} (${Number(it.qty_requested || 0)}) [${esc(cond)}]${badge}</div>`;
+              let badge = '';
+              if (it.return_status === 'returned' || (qtyReq > 0 && qtyDone >= qtyReq)) {
+                badge = ' <span class="text-[10px] font-bold text-emerald-700">(Sudah Kembali)</span>';
+              } else if (qtyDone > 0) {
+                badge = ` <span class="text-[10px] font-bold text-amber-700">(Kembali ${qtyDone}/${qtyReq})</span>`;
+              } else if (it.return_status === 'return_requested') {
+                badge = ' <span class="text-[10px] font-bold text-indigo-700">(Diajukan Kembali)</span>';
+              }
+              return `<div>${esc(it.item_name)} (${qtyReq}) [${esc(cond)}]${badge}</div>`;
             })
             .join('');
         },
@@ -643,19 +654,31 @@ export function createTransactionModule() {
             labName: loan.lab_name || '',
             notes: loan.return_notes || '',
             items: items.map((it) => {
-              const alreadyReturned = it.return_status === 'returned';
+              const qtyReq = Number(it.qty_requested || 1);
+              const qtyDone = Number(it.qty_returned_good || 0) + Number(it.qty_returned_minor_dmg || 0) + Number(it.qty_returned_damaged || 0);
+              const qtyRem = Math.max(0, qtyReq - qtyDone);
+              const alreadyReturned = it.return_status === 'returned' || qtyRem <= 0;
               const defaultChecked = !alreadyReturned && (hasRequestedItems ? it.return_status === 'return_requested' : true);
+
+              // Baca jumlah ajuan user dari catatan "[Ajuan Kembali: X unit]" bila ada
+              const noteStr = String(it.condition_notes || '');
+              const reqMatch = noteStr.match(/\[Ajuan Kembali:\s*(\d+)\s*unit\]/i);
+              const parsedReqQty = reqMatch ? Math.min(qtyRem, Math.max(1, Number(reqMatch[1]))) : qtyRem;
+
               return {
                 loan_item_id: it.loan_item_id,
                 eq_inv_id: it.eq_inv_id,
                 item_id: it.item_id,
                 item_name: it.item_name,
-                qty_requested: Number(it.qty_requested || 1),
+                qty_requested: qtyReq,
+                qty_already_returned: qtyDone,
+                qty_remaining: qtyRem,
+                qty_to_return: qtyRem > 0 ? parsedReqQty : 0,
                 already_returned: alreadyReturned,
                 return_status: it.return_status || '',
                 selected: defaultChecked,
                 return_condition: it.return_condition || 'Baik',
-                condition_notes: it.condition_notes || '',
+                condition_notes: noteStr,
               };
             }),
           };
@@ -670,11 +693,20 @@ export function createTransactionModule() {
             return;
           }
 
+          for (const it of selectedItems) {
+            const q = Number(it.qty_to_return || 0);
+            if (!Number.isFinite(q) || q < 1 || q > Number(it.qty_remaining || 1)) {
+              this.showToast(`Jumlah kembali untuk "${it.item_name}" harus antara 1 s.d. ${it.qty_remaining} unit.`, 'error');
+              return;
+            }
+          }
+
           try {
             if (modal.mode === 'user_request') {
               const reqItems = selectedItems.map((it) => ({
                 loan_item_id: it.loan_item_id,
                 item_id: it.item_id,
+                qty_returned: Math.round(Number(it.qty_to_return || it.qty_remaining)),
               }));
               const res = await this.runGas(
                 'apiUserRequestReturn',
@@ -693,7 +725,7 @@ export function createTransactionModule() {
               loan_item_id: it.loan_item_id,
               eq_inv_id: it.eq_inv_id,
               item_id: it.item_id,
-              qty_returned: Number(it.qty_requested || 1),
+              qty_returned: Math.round(Number(it.qty_to_return || it.qty_remaining)),
               return_condition: it.return_condition || 'Baik',
               condition_notes: it.condition_notes || modal.notes || '',
             }));
